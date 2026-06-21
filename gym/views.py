@@ -60,3 +60,11 @@ class NearbyGymsAPIView(APIView):
         serializer = GymSerializer(sorted_gyms[:10], many=True)
 
         return Response(serializer.data)
+    
+
+class GymDetailAPIView(generics.RetrieveAPIView):
+    queryset = Gym.objects.prefetch_related(
+        "images",
+        "videos",
+    )
+    serializer_class = GymDetailSerializer

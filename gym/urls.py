@@ -8,4 +8,9 @@ urlpatterns = [
     path("top/", TopPopularGymsAPIView.as_view(), name="top-gyms"),
     path("nearby/", NearbyGymsAPIView.as_view()),
     path("prices/", GymPriceListView.as_view()),
+    path(
+        "gyms/<int:pk>/",
+        GymDetailAPIView.as_view(),
+        name="gym-detail",
+    ),
 ]

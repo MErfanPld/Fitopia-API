@@ -44,3 +44,24 @@ class GymSerializer(serializers.ModelSerializer):
     class Meta:
         model = Gym
         fields = "__all__"
+
+
+class GymDetailSerializer(serializers.ModelSerializer):
+    images = GymImageSerializer(many=True, read_only=True)
+    videos = GymVideoSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Gym
+        fields = (
+            "id",
+            "name",
+            "address",
+            "phone",
+            "latitude",
+            "longitude",
+            "cover_image",
+            "is_popular",
+            "popularity_score",
+            "images",
+            "videos",
+        )
