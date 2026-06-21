@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import SportCategory, Sport, Gym, GymPrice
+from .models import *
 
 
 @admin.register(SportCategory)
@@ -19,6 +19,15 @@ class GymPriceInline(admin.TabularInline):
     model = GymPrice
     extra = 1
 
+class GymImageInline(admin.TabularInline):
+    model = GymImage
+    extra = 1
+
+
+class GymVideoInline(admin.TabularInline):
+    model = GymVideo
+    extra = 1
+
 
 @admin.register(Gym)
 class GymAdmin(admin.ModelAdmin):
@@ -26,7 +35,7 @@ class GymAdmin(admin.ModelAdmin):
     list_filter = ("is_popular",)
     search_fields = ("name",)
     filter_horizontal = ("sports",)
-    inlines = [GymPriceInline]
+    inlines = [GymPriceInline,GymImageInline,GymVideoInline]
 
 
 @admin.register(GymPrice)
