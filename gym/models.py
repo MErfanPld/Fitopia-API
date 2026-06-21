@@ -1,5 +1,16 @@
 from django.db import models
+import os
+import uuid
+from django.utils.text import slugify
+import time
 
+
+def upload_gym_cover_image(instance, filename):
+    short_name = slugify(instance.name, allow_unicode=True)[:50]  
+    ext = filename.split('.')[-1]
+    unique_name = f"{int(time.time())}_{uuid.uuid4().hex[:8]}_{short_name}.{ext}"
+    path = os.path.join('uploads/gym/cover', unique_name)
+    return path
 
 class SportCategory(models.Model):
     title = models.CharField(max_length=100, verbose_name="عنوان دسته‌بندی")
@@ -40,7 +51,7 @@ class Gym(models.Model):
     longitude = models.FloatField(verbose_name="طول جغرافیایی")
 
     cover_image = models.ImageField(
-        upload_to="gyms/covers/",
+        upload_to=upload_gym_cover_image,
         verbose_name="تصویر اصلی باشگاه",
         null=True,
         blank=True
