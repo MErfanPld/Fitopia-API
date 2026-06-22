@@ -64,7 +64,14 @@ class NearbyGymsAPIView(APIView):
 
 class GymDetailAPIView(generics.RetrieveAPIView):
     queryset = Gym.objects.prefetch_related(
+        "sports",
+        "facilities",
+        "prices",
         "images",
         "videos",
+        "banners",
+        "coaches",
+        "reviews",
     )
+
     serializer_class = GymDetailSerializer

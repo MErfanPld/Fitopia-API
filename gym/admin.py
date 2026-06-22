@@ -14,10 +14,10 @@ class SportAdmin(admin.ModelAdmin):
     list_filter = ("category",)
     search_fields = ("name",)
 
-
 class GymPriceInline(admin.TabularInline):
     model = GymPrice
     extra = 1
+
 
 class GymImageInline(admin.TabularInline):
     model = GymImage
@@ -29,16 +29,43 @@ class GymVideoInline(admin.TabularInline):
     extra = 1
 
 
+class GymBannerInline(admin.TabularInline):
+    model = GymBanner
+    extra = 1
+
+
+class GymCoachInline(admin.TabularInline):
+    model = GymCoach
+    extra = 1
+
+
+class GymReviewInline(admin.TabularInline):
+    model = GymReview
+    extra = 0
+
+
 @admin.register(Gym)
 class GymAdmin(admin.ModelAdmin):
-    list_display = ("name", "phone","latitude", "longitude","is_popular", "popularity_score")
-    list_filter = ("is_popular",)
-    search_fields = ("name",)
-    filter_horizontal = ("sports",)
-    inlines = [GymPriceInline,GymImageInline,GymVideoInline]
+    list_display = (
+        "name",
+        "phone",
+        "is_popular",
+        "popularity_score"
+    )
+
+    filter_horizontal = (
+        "sports",
+        "facilities"
+    )
+
+    inlines = [
+        GymPriceInline,
+        GymImageInline,
+        GymVideoInline,
+        GymBannerInline,
+        GymCoachInline,
+        GymReviewInline,
+    ]
 
 
-@admin.register(GymPrice)
-class GymPriceAdmin(admin.ModelAdmin):
-    list_display = ("gym", "sport", "monthly_price", "yearly_price")
-    list_filter = ("sport",)
+admin.site.register(GymFacility)
