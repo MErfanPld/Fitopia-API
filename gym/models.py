@@ -359,4 +359,4 @@ class GymReview(models.Model):
         verbose_name_plural = "نظرات کاربران"
 
     def __str__(self):
-        return f"{self.gym.name} - {self.selfrating}"
+        return f"{self.gym.name} "
