@@ -15,6 +15,8 @@ from .serializers import (
     LogoutSerializer,
     RegisterSerializer,
     LoginSerializer,
+    UserProfileSerializer,
+    UserProfileUpdateSerializer,
 )
 
 from users.serializers import UserSerializer
@@ -100,7 +102,6 @@ class LogoutView(APIView):
 
             token = RefreshToken(refresh_token)
 
-            # ❌ این خط را حذف کن (علت 500)
             token.blacklist()
 
             return Response(
@@ -113,6 +114,22 @@ class LogoutView(APIView):
                 {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
+
+# # =========================
+# #  PROFILE
+# # =========================
+class UserProfileAPIView(generics.RetrieveUpdateAPIView):
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        return self.request.user
+
+    def get_serializer_class(self):
+        if self.request.method in ["PUT", "PATCH"]:
+            return UserProfileUpdateSerializer
+        return UserProfileSerializer
+
 
 # # =========================
 # # 🔑 CHANGE PASSWORD

@@ -1,6 +1,6 @@
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from django.db import models
-
+from users.utils import upload_user_avatar
 
 class UserManager(BaseUserManager):
 
@@ -52,6 +52,15 @@ class User(AbstractBaseUser, PermissionsMixin):
         max_length=255,
         blank=True,
         verbose_name="نام کامل"
+    )
+    
+    gender = models.CharField(max_length=10, blank=True,verbose_name="جنسیت")
+    birth_date = models.DateField(null=True, blank=True, verbose_name="تاریخ تولد")
+    avatar = models.ImageField(
+        upload_to=upload_user_avatar,
+        null=True,
+        blank=True,
+        verbose_name="آواتار"
     )
 
     is_active = models.BooleanField(default=True, verbose_name="فعال")
