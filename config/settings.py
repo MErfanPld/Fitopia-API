@@ -47,6 +47,8 @@ INSTALLED_APPS = [
     'users',
     'acl',
     'gym',
+    'tokens',
+    'subscriptions',
 ]
 
 MIDDLEWARE = [
