@@ -59,13 +59,13 @@ class UserSubscriptionAdmin(admin.ModelAdmin):
         "discount_applied",
         "created_at",
     ]
-    list_filter = ["status", SubscriptionStatusFilter, "plan"]
+    list_filter = ["status", SubscriptionStatusFilter, "plan", "paid_amount"]
     search_fields = ["user__phone_number", "user__full_name"]
     readonly_fields = [
         "tokens_total",
         "tokens_used",
         "leftover_tokens",
-        "paid_amount",
+        # "paid_amount",
         "discount_applied",
         "start_date",
         "end_date",
