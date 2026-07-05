@@ -18,4 +18,8 @@ urlpatterns = [
 
     # ادمین
     path("expire/<int:pk>/", views.ExpireSubscriptionView.as_view(), name="expire-subscription"),
+    
+    path("subscriptions/<int:pk>/gyms/", SubscriptionGymsAPIView.as_view(), name="subscription-gyms"),
+    path("subscriptions/me/gyms/", MyActiveSubscriptionGymsAPIView.as_view(), name="my-subscription-gyms"),
+
 ]

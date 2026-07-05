@@ -5,7 +5,14 @@ from django.utils import timezone
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers as drf_serializers
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.exceptions import PermissionDenied
+from django.shortcuts import get_object_or_404
 
+from .models import UserSubscription
+from .serializers import SubscriptionGymsSerializer
 
 from .models import Plan, UserSubscription, UserDiscountProfile
 from .serializers import (
@@ -159,3 +166,46 @@ class ExpireSubscriptionView(views.APIView):
         subscription = get_object_or_404(UserSubscription, pk=pk)
         subscription.expire()
         return Response({"message": "اشتراک منقضی شد و توکن‌های باقیمانده ذخیره شدند."})
+    
+    
+class SubscriptionGymsAPIView(APIView):
+    """
+    برگرداندن باشگاه‌های مجاز یک اشتراک خاص
+    GET /api/subscriptions/<pk>/gyms/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, pk):
+        subscription = get_object_or_404(
+            UserSubscription.objects.select_related("plan").prefetch_related("plan__gyms"),
+            pk=pk
+        )
+
+        # فقط صاحب اشتراک یا ادمین اجازه دسترسی داره
+        if subscription.user_id != request.user.id and not request.user.is_staff:
+            raise PermissionDenied("شما به این اشتراک دسترسی ندارید.")
+
+        serializer = SubscriptionGymsSerializer(subscription)
+        return Response(serializer.data)
+    
+    
+class MyActiveSubscriptionGymsAPIView(APIView):
+    """
+    GET /api/subscriptions/me/gyms/
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        subscription = (
+            UserSubscription.objects
+            .filter(user=request.user, status="active")
+            .select_related("plan")
+            .prefetch_related("plan__gyms")
+            .order_by("-created_at")
+            .first()
+        )
+        if not subscription:
+            return Response({"detail": "اشتراک فعالی یافت نشد."}, status=404)
+
+        serializer = SubscriptionGymsSerializer(subscription)
+        return Response(serializer.data)

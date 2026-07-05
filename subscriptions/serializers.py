@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.utils import timezone
 from .models import Plan, UserSubscription, UserDiscountProfile
-
+from gyms.models import Gym
 
 class PlanSerializer(serializers.ModelSerializer):
     gyms_count = serializers.SerializerMethodField()
@@ -120,3 +120,20 @@ class UserDiscountProfileSerializer(serializers.ModelSerializer):
             "is_used",
             "updated_at",
         ]
+        
+        
+class GymSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Gym
+        fields = ["id", "name", "address", "phone"]
+
+
+class SubscriptionGymsSerializer(serializers.Serializer):
+    subscription_id = serializers.IntegerField(source="id")
+    plan_name = serializers.CharField(source="plan.name")
+    status = serializers.CharField()
+    is_active = serializers.BooleanField()
+    gyms = serializers.SerializerMethodField()
+
+    def get_gyms(self, obj):
+        return GymSerializer(obj.plan.gyms.all(), many=True).data
