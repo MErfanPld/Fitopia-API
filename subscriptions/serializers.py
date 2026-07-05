@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.utils import timezone
 from .models import Plan, UserSubscription, UserDiscountProfile
-from gyms.models import Gym
+from gym.models import Gym
 
 class PlanSerializer(serializers.ModelSerializer):
     gyms_count = serializers.SerializerMethodField()
