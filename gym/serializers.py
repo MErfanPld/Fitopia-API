@@ -59,6 +59,8 @@ class GymReviewSerializer(serializers.ModelSerializer):
 
 
 class GymSerializer(serializers.ModelSerializer):
+    sports = SportSerializer(many=True, read_only=True)
+    facilities = GymFacilitySerializer(many=True, read_only=True)
     class Meta:
         model = Gym
         fields = "__all__"

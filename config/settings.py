@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'users',
     'acl',
     'gym',
+    'core',
     'tokens',
     'subscriptions',
 ]
