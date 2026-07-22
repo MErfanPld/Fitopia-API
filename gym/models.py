@@ -303,6 +303,12 @@ class GymCoach(models.Model):
         verbose_name="باشگاه"
     )
 
+    sports = models.ManyToManyField(
+        Sport,
+        related_name="coaches",
+        blank=True
+    )
+
     full_name = models.CharField(
         max_length=100,
         verbose_name="نام مربی"

@@ -156,7 +156,7 @@ from .serializers import SportAccessSerializer, GymSummarySerializer, CoachSeria
 
 def _get_active_subscription_for_user(user):
     now = timezone.now()
-    return UserSubscription.objects.filter(user=user, is_active=True, end_date__gt=now).first()
+    return UserSubscription.objects.filter(user=user, end_date__gt=now).first()
 
 class GymSportsAccessView(APIView):
     permission_classes = [AllowAny]
@@ -206,7 +206,7 @@ class GymSportsAccessView(APIView):
         if active_sub:
             subscription_info = {
                 'id': active_sub.id,
-                'is_active': active_sub.is_active,
+                # 'is_active': active_sub.is_active,
                 'end_date': active_sub.end_date,
                 'gyms': list(active_sub.gyms.values_list('id', flat=True)) if hasattr(active_sub, 'gyms') else [],
             }
