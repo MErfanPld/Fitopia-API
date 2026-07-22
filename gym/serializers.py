@@ -134,4 +134,4 @@ class GymSummarySerializer(serializers.ModelSerializer):
 class CoachSerializer(serializers.ModelSerializer):
     class Meta:
         model = GymCoach
-        fields = ('id','name','image','specialty','bio')
+        fields = ('id','full_name','image','specialty')
