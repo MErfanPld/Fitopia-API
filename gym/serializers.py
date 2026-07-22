@@ -119,3 +119,19 @@ class GymDetailSerializer(serializers.ModelSerializer):
             "coaches",
             "reviews",
         )
+        
+        
+class SportAccessSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+    has_access = serializers.BooleanField()
+
+class GymSummarySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Gym
+        fields = ('id','name')
+
+class CoachSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GymCoach
+        fields = ('id','name','image','specialty','bio')

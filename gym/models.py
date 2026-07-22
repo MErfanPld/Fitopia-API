@@ -360,3 +360,4 @@ class GymReview(models.Model):
 
     def __str__(self):
         return f"{self.gym.name} "
+    

@@ -141,3 +141,121 @@ class GymDetailAPIView(generics.RetrieveAPIView):
     )
 
     serializer_class = GymDetailSerializer
+    
+
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
+from django.utils import timezone
+from rest_framework import status
+
+from .models import Gym, Sport, GymCoach
+from subscriptions.models import UserSubscription
+from .serializers import SportAccessSerializer, GymSummarySerializer, CoachSerializer
+
+def _get_active_subscription_for_user(user):
+    now = timezone.now()
+    return UserSubscription.objects.filter(user=user, is_active=True, end_date__gt=now).first()
+
+class GymSportsAccessView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, gym_id):
+        gym = get_object_or_404(Gym, pk=gym_id)
+        user = request.user if request.user.is_authenticated else None
+
+        active_sub = None
+        allowed_sport_ids = set()
+        belongs_to_gym = False
+
+        if user:
+            active_sub = _get_active_subscription_for_user(user)
+            if active_sub:
+                # try subscription -> sports
+                if hasattr(active_sub, 'sports') and active_sub.sports.exists():
+                    allowed_sport_ids = set(active_sub.sports.values_list('id', flat=True))
+                # or plan -> allowed_sports
+                elif hasattr(active_sub, 'plan') and hasattr(active_sub.plan, 'sports'):
+                    allowed_sport_ids = set(active_sub.plan.sports.values_list('id', flat=True))
+                # check if subscription explicitly tied to gyms
+                if hasattr(active_sub, 'gyms'):
+                    belongs_to_gym = gym.id in list(active_sub.gyms.values_list('id', flat=True))
+                else:
+                    # fallback policy: subscription applies to gyms in subscriptionGyms service or global
+                    belongs_to_gym = True
+
+        # Build sports list
+        sports_qs = gym.sports.all()  # adjust relation name
+        sports_list = []
+        for s in sports_qs:
+            has_access = False
+            if active_sub and belongs_to_gym:
+                if not allowed_sport_ids:
+                    # policy: subscription covers all sports of gym if no explicit sport list
+                    has_access = True
+                else:
+                    has_access = s.id in allowed_sport_ids
+            sports_list.append({
+                'id': s.id,
+                'name': s.name,
+                'has_access': has_access
+            })
+
+        subscription_info = None
+        if active_sub:
+            subscription_info = {
+                'id': active_sub.id,
+                'is_active': active_sub.is_active,
+                'end_date': active_sub.end_date,
+                'gyms': list(active_sub.gyms.values_list('id', flat=True)) if hasattr(active_sub, 'gyms') else [],
+            }
+
+        return Response({
+            'gym': GymSummarySerializer(gym).data,
+            'sports': sports_list,
+            'subscription': subscription_info
+        }, status=status.HTTP_200_OK)
+
+
+class SportCoachesView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, gym_id, sport_id):
+        gym = get_object_or_404(Gym, pk=gym_id)
+        sport = get_object_or_404(Sport, pk=sport_id)
+
+        # verify sport belongs to gym
+        if not gym.sports.filter(pk=sport.id).exists():
+            return Response({'detail': 'Sport not available for this gym'}, status=status.HTTP_404_NOT_FOUND)
+
+        # verify user subscription & access
+        user = request.user
+        active_sub = _get_active_subscription_for_user(user)
+        if not active_sub:
+            return Response({'detail': 'No active subscription'}, status=status.HTTP_403_FORBIDDEN)
+
+        # determine allowed_sport_ids as above
+        allowed_sport_ids = set()
+        if hasattr(active_sub, 'sports') and active_sub.sports.exists():
+            allowed_sport_ids = set(active_sub.sports.values_list('id', flat=True))
+        elif hasattr(active_sub, 'plan') and hasattr(active_sub.plan, 'sports'):
+            allowed_sport_ids = set(active_sub.plan.sports.values_list('id', flat=True))
+
+        belongs_to_gym = True
+        if hasattr(active_sub, 'gyms'):
+            belongs_to_gym = gym.id in list(active_sub.gyms.values_list('id', flat=True))
+
+        allowed = False
+        if belongs_to_gym:
+            if not allowed_sport_ids:
+                allowed = True
+            else:
+                allowed = sport.id in allowed_sport_ids
+
+        if not allowed:
+            return Response({'detail': 'Forbidden'}, status=status.HTTP_403_FORBIDDEN)
+
+        coaches = GymCoach.objects.filter(gym=gym, sports__id=sport.id).distinct()
+        serializer = CoachSerializer(coaches, many=True)
+        return Response({'sport': {'id': sport.id, 'name': sport.name}, 'coaches': serializer.data})
