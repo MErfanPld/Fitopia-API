@@ -345,22 +345,10 @@ class NearbyGymsAPIView(APIView):
             )
 
 
-        return Response(
-            {
-                "count": len(results),
-
-                "radius_km": radius,
-
-                "user_location": {
-                    "latitude": user_lat,
-                    "longitude": user_lon,
-                },
-
-                "results": results
-            },
-
-            status=status.HTTP_200_OK
-        )
+            return Response(
+                results,
+                status=status.HTTP_200_OK
+            )
 
 # =========================================================
 # GYM DETAIL
