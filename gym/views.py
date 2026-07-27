@@ -116,19 +116,28 @@ def _get_active_subscription_for_user(user):
 # NEARBY GYMS
 # =========================================================
 
+from math import radians, sin, cos, sqrt, atan2
+
+from django.utils import timezone
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+from rest_framework import status
+
+from subscriptions.models import UserSubscription
+
+from .models import Gym
+from .serializers import GymSerializer
+
 
 def calculate_distance(lat1, lon1, lat2, lon2):
-    """
-    Calculate distance between two coordinates
-    using Haversine formula.
-
-    Result is in kilometers.
-    """
 
     R = 6371.0
 
     lat1 = radians(float(lat1))
     lon1 = radians(float(lon1))
+
     lat2 = radians(float(lat2))
     lon2 = radians(float(lon2))
 
@@ -157,40 +166,33 @@ class NearbyGymsAPIView(APIView):
 
     def get(self, request):
 
-        # ==================================================
-        # 1. Get user location
-        # ==================================================
-
-        lat = request.query_params.get("lat")
-        lon = request.query_params.get("lon")
-
-        if lat is None or lon is None:
-
-            return Response(
-                {
-                    "detail": "پارامترهای lat و lon الزامی هستند."
-                },
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # =================================================
+        # GET LOCATION
+        # =================================================
 
         try:
 
-            user_lat = float(lat)
-            user_lon = float(lon)
+            user_lat = float(
+                request.query_params.get("lat")
+            )
+
+            user_lon = float(
+                request.query_params.get("lon")
+            )
 
         except (TypeError, ValueError):
 
             return Response(
                 {
-                    "detail": "lat و lon باید عددی باشند."
+                    "detail": "lat و lon الزامی و باید عدد باشند."
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
 
-        # ==================================================
-        # 2. Get radius
-        # ==================================================
+        # =================================================
+        # GET RADIUS
+        # =================================================
 
         try:
 
@@ -206,16 +208,23 @@ class NearbyGymsAPIView(APIView):
             radius = 10
 
 
-        # ==================================================
-        # 3. Get active subscription
-        # ==================================================
+        # =================================================
+        # GET ALL GYMS
+        # =================================================
+
+        gyms = Gym.objects.all()
+
+
+        # =================================================
+        # GET USER ACTIVE SUBSCRIPTION
+        # =================================================
 
         subscription = (
             UserSubscription.objects
             .filter(
                 user=request.user,
                 status="active",
-                end_date__gt=timezone.now(),
+                end_date__gt=timezone.now()
             )
             .select_related("plan")
             .prefetch_related("plan__gyms")
@@ -224,54 +233,29 @@ class NearbyGymsAPIView(APIView):
         )
 
 
-        # ==================================================
-        # 4. Check subscription
-        # ==================================================
+        # =================================================
+        # GET ALLOWED GYM IDS
+        # =================================================
 
-        if not subscription:
+        allowed_gym_ids = set()
 
-            return Response(
-                {
-                    "detail": "اشتراک فعال ندارید.",
-                    "results": []
-                },
-                status=status.HTTP_200_OK
+        if subscription and subscription.plan:
+
+            allowed_gym_ids = set(
+                subscription.plan.gyms.values_list(
+                    "id",
+                    flat=True
+                )
             )
 
 
-        # ==================================================
-        # 5. Check plan
-        # ==================================================
-
-        if not subscription.plan:
-
-            return Response(
-                {
-                    "detail": "پلن اشتراک شما مشخص نیست.",
-                    "results": []
-                },
-                status=status.HTTP_200_OK
-            )
-
-
-        # ==================================================
-        # 6. Get gyms from subscription plan
-        # ==================================================
-
-        gyms = subscription.plan.gyms.all()
-
-
-        # ==================================================
-        # 7. Find nearby gyms
-        # ==================================================
+        # =================================================
+        # FIND NEARBY GYMS
+        # =================================================
 
         nearby_gyms = []
 
         for gym in gyms:
-
-            # ----------------------------------------------
-            # Skip gyms without coordinates
-            # ----------------------------------------------
 
             if (
                 gym.latitude is None
@@ -295,10 +279,6 @@ class NearbyGymsAPIView(APIView):
                 continue
 
 
-            # ----------------------------------------------
-            # Calculate distance
-            # ----------------------------------------------
-
             distance = calculate_distance(
                 user_lat,
                 user_lon,
@@ -306,10 +286,6 @@ class NearbyGymsAPIView(APIView):
                 gym_lon
             )
 
-
-            # ----------------------------------------------
-            # Check radius
-            # ----------------------------------------------
 
             if distance <= radius:
 
@@ -319,32 +295,29 @@ class NearbyGymsAPIView(APIView):
                         "distance": round(
                             distance,
                             3
+                        ),
+                        "has_access": (
+                            gym.id
+                            in allowed_gym_ids
                         )
                     }
                 )
 
 
-        # ==================================================
-        # 8. Sort by distance
-        # ==================================================
+        # =================================================
+        # SORT BY DISTANCE
+        # =================================================
 
         nearby_gyms.sort(
             key=lambda item: item["distance"]
         )
 
 
-        # ==================================================
-        # 9. Limit to 10 gyms
-        # ==================================================
+        # =================================================
+        # RESPONSE
+        # =================================================
 
-        nearby_gyms = nearby_gyms[:10]
-
-
-        # ==================================================
-        # 10. Serialize gyms
-        # ==================================================
-
-        gyms_data = []
+        results = []
 
         for item in nearby_gyms:
 
@@ -359,21 +332,22 @@ class NearbyGymsAPIView(APIView):
 
             gym_data = serializer.data
 
-            # Add calculated distance
-            gym_data["distance_km"] = item["distance"]
+            gym_data["distance_km"] = (
+                item["distance"]
+            )
 
-            gyms_data.append(
+            gym_data["has_access"] = (
+                item["has_access"]
+            )
+
+            results.append(
                 gym_data
             )
 
 
-        # ==================================================
-        # 11. Return response
-        # ==================================================
-
         return Response(
             {
-                "count": len(gyms_data),
+                "count": len(results),
 
                 "radius_km": radius,
 
@@ -382,7 +356,7 @@ class NearbyGymsAPIView(APIView):
                     "longitude": user_lon,
                 },
 
-                "results": gyms_data
+                "results": results
             },
 
             status=status.HTTP_200_OK
