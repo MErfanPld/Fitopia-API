@@ -149,46 +149,15 @@ def _get_active_subscription_for_user(user):
 
 class NearbyGymsAPIView(APIView):
 
-    """
-    نزدیک‌ترین باشگاه‌های مجاز اشتراک فعال کاربر
+    permission_classes = [IsAuthenticated]
 
-    GET:
-    /api/gym/nearby/?lat=35.7&lon=51.4
-    """
-
-    permission_classes = [
-        IsAuthenticated
-    ]
-
-    @extend_schema(
-        parameters=[
-            OpenApiParameter(
-                name="lat",
-                type=OpenApiTypes.FLOAT,
-                location=OpenApiParameter.QUERY,
-                required=True,
-                description="عرض جغرافیایی موقعیت کاربر",
-            ),
-            OpenApiParameter(
-                name="lon",
-                type=OpenApiTypes.FLOAT,
-                location=OpenApiParameter.QUERY,
-                required=True,
-                description="طول جغرافیایی موقعیت کاربر",
-            ),
-        ],
-        responses={
-            200: GymSerializer(many=True)
-        },
-        summary="نزدیک‌ترین باشگاه‌های مجاز اشتراک فعال",
-    )
     def get(self, request):
 
-        # -----------------------------------------
-        # Get coordinates
-        # -----------------------------------------
-
         try:
+
+            # -----------------------------------------
+            # Get user coordinates
+            # -----------------------------------------
 
             user_lat = float(
                 request.query_params.get("lat")
@@ -198,103 +167,146 @@ class NearbyGymsAPIView(APIView):
                 request.query_params.get("lon")
             )
 
-        except (
-            TypeError,
-            ValueError
-        ):
+            # -----------------------------------------
+            # Get active subscription
+            # -----------------------------------------
 
-            return Response(
-                {
-                    "detail": (
-                        "پارامترهای lat و lon "
-                        "الزامی و باید عددی باشند."
+            subscription = (
+                UserSubscription.objects
+                .filter(
+                    user=request.user,
+                    status="active",
+                    end_date__gt=timezone.now(),
+                )
+                .select_related("plan")
+                .order_by("-created_at")
+                .first()
+            )
+
+            if not subscription:
+
+                return Response(
+                    {
+                        "detail": "اشتراک فعالی یافت نشد."
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # -----------------------------------------
+            # Check plan
+            # -----------------------------------------
+
+            if not subscription.plan:
+
+                return Response(
+                    {
+                        "detail": "اشتراک فاقد پلن است."
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # -----------------------------------------
+            # Get gyms
+            # -----------------------------------------
+
+            gyms = list(
+                subscription.plan.gyms.all()
+            )
+
+            if not gyms:
+
+                return Response(
+                    {
+                        "detail": (
+                            "هیچ باشگاهی برای "
+                            "پلن اشتراک تعریف نشده است."
+                        )
+                    },
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # -----------------------------------------
+            # Get radius
+            # -----------------------------------------
+
+            radius = float(
+                request.query_params.get(
+                    "radius",
+                    10
+                )
+            )
+
+            # -----------------------------------------
+            # Calculate nearby gyms
+            # -----------------------------------------
+
+            nearby_gyms = []
+
+            for gym in gyms:
+
+                if (
+                    gym.latitude is None
+                    or gym.longitude is None
+                ):
+                    continue
+
+                distance = calculate_distance(
+                    user_lat,
+                    user_lon,
+                    float(gym.latitude),
+                    float(gym.longitude),
+                )
+
+                if distance <= radius:
+
+                    nearby_gyms.append(
+                        (
+                            gym,
+                            distance
+                        )
                     )
-                },
-                status=status.HTTP_400_BAD_REQUEST
+
+            # -----------------------------------------
+            # Sort by distance
+            # -----------------------------------------
+
+            nearby_gyms.sort(
+                key=lambda item: item[1]
             )
 
-        # -----------------------------------------
-        # Get active subscription
-        # -----------------------------------------
+            # -----------------------------------------
+            # Get gym objects
+            # -----------------------------------------
 
-        subscription = (
-            _get_active_subscription_for_user(
-                request.user
+            sorted_gyms = [
+                gym
+                for gym, distance
+                in nearby_gyms[:10]
+            ]
+
+            # -----------------------------------------
+            # Serialize
+            # -----------------------------------------
+
+            serializer = GymSerializer(
+                sorted_gyms,
+                many=True
             )
-        )
 
-        if not subscription:
+            return Response(
+                serializer.data,
+                status=status.HTTP_200_OK
+            )
+
+        except Exception as e:
 
             return Response(
                 {
-                    "detail": "اشتراک فعالی یافت نشد."
+                    "detail": "خطا در دریافت باشگاه‌های نزدیک.",
+                    "error": str(e),
                 },
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-
-        # -----------------------------------------
-        # Check plan
-        # -----------------------------------------
-
-        if not subscription.plan:
-
-            return Response(
-                {
-                    "detail": (
-                        "اشتراک شما فاقد پلن معتبر است."
-                    )
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # -----------------------------------------
-        # Get gyms from plan
-        # -----------------------------------------
-
-        gyms = list(
-            subscription.plan.gyms.all()
-        )
-
-        if not gyms:
-
-            return Response(
-                {
-                    "detail": (
-                        "باشگاهی برای این اشتراک "
-                        "تعریف نشده است."
-                    )
-                },
-                status=status.HTTP_404_NOT_FOUND
-            )
-
-        # -----------------------------------------
-        # Sort gyms by distance
-        # -----------------------------------------
-
-        sorted_gyms = sorted(
-            gyms,
-            key=lambda gym: calculate_distance(
-                user_lat,
-                user_lon,
-                gym.latitude,
-                gym.longitude
-            )
-        )[:10]
-
-        # -----------------------------------------
-        # Serialize
-        # -----------------------------------------
-
-        serializer = GymSerializer(
-            sorted_gyms,
-            many=True
-        )
-
-        return Response(
-            serializer.data,
-            status=status.HTTP_200_OK
-        )
-
 
 # =========================================================
 # GYM DETAIL
