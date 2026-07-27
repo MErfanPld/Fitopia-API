@@ -154,11 +154,6 @@ class NearbyGymsAPIView(APIView):
     def get(self, request):
 
         try:
-
-            # -----------------------------------------
-            # Get user coordinates
-            # -----------------------------------------
-
             user_lat = float(
                 request.query_params.get("lat")
             )
@@ -167,68 +162,6 @@ class NearbyGymsAPIView(APIView):
                 request.query_params.get("lon")
             )
 
-            # -----------------------------------------
-            # Get active subscription
-            # -----------------------------------------
-
-            subscription = (
-                UserSubscription.objects
-                .filter(
-                    user=request.user,
-                    status="active",
-                    end_date__gt=timezone.now(),
-                )
-                .select_related("plan")
-                .order_by("-created_at")
-                .first()
-            )
-
-            if not subscription:
-
-                return Response(
-                    {
-                        "detail": "اشتراک فعالی یافت نشد."
-                    },
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            # -----------------------------------------
-            # Check plan
-            # -----------------------------------------
-
-            if not subscription.plan:
-
-                return Response(
-                    {
-                        "detail": "اشتراک فاقد پلن است."
-                    },
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            # -----------------------------------------
-            # Get gyms
-            # -----------------------------------------
-
-            gyms = list(
-                subscription.plan.gyms.all()
-            )
-
-            if not gyms:
-
-                return Response(
-                    {
-                        "detail": (
-                            "هیچ باشگاهی برای "
-                            "پلن اشتراک تعریف نشده است."
-                        )
-                    },
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            # -----------------------------------------
-            # Get radius
-            # -----------------------------------------
-
             radius = float(
                 request.query_params.get(
                     "radius",
@@ -236,77 +169,177 @@ class NearbyGymsAPIView(APIView):
                 )
             )
 
-            # -----------------------------------------
-            # Calculate nearby gyms
-            # -----------------------------------------
-
-            nearby_gyms = []
-
-            for gym in gyms:
-
-                if (
-                    gym.latitude is None
-                    or gym.longitude is None
-                ):
-                    continue
-
-                distance = calculate_distance(
-                    user_lat,
-                    user_lon,
-                    float(gym.latitude),
-                    float(gym.longitude),
-                )
-
-                if distance <= radius:
-
-                    nearby_gyms.append(
-                        (
-                            gym,
-                            distance
-                        )
-                    )
-
-            # -----------------------------------------
-            # Sort by distance
-            # -----------------------------------------
-
-            nearby_gyms.sort(
-                key=lambda item: item[1]
-            )
-
-            # -----------------------------------------
-            # Get gym objects
-            # -----------------------------------------
-
-            sorted_gyms = [
-                gym
-                for gym, distance
-                in nearby_gyms[:10]
-            ]
-
-            # -----------------------------------------
-            # Serialize
-            # -----------------------------------------
-
-            serializer = GymSerializer(
-                sorted_gyms,
-                many=True
-            )
-
-            return Response(
-                serializer.data,
-                status=status.HTTP_200_OK
-            )
-
-        except Exception as e:
+        except (TypeError, ValueError):
 
             return Response(
                 {
-                    "detail": "خطا در دریافت باشگاه‌های نزدیک.",
-                    "error": str(e),
+                    "detail": "lat، lon و radius باید عدد باشند."
                 },
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                status=status.HTTP_400_BAD_REQUEST
             )
+
+        # -----------------------------------------
+        # Active subscription
+        # -----------------------------------------
+
+        subscription = (
+            UserSubscription.objects
+            .filter(
+                user=request.user,
+                status="active",
+                end_date__gt=timezone.now(),
+            )
+            .select_related("plan")
+            .prefetch_related("plan__gyms")
+            .order_by("-created_at")
+            .first()
+        )
+
+        if not subscription:
+
+            return Response(
+                {
+                    "detail": "اشتراک فعالی یافت نشد."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if not subscription.plan:
+
+            return Response(
+                {
+                    "detail": "اشتراک فاقد پلن است."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # -----------------------------------------
+        # Gyms of user's plan
+        # -----------------------------------------
+
+        gyms = subscription.plan.gyms.all()
+
+        if not gyms.exists():
+
+            return Response(
+                {
+                    "detail": "هیچ باشگاهی برای پلن شما تعریف نشده است."
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        nearby_gyms = []
+
+        # -----------------------------------------
+        # Calculate distance
+        # -----------------------------------------
+
+        for gym in gyms:
+
+            if (
+                gym.latitude is None
+                or gym.longitude is None
+            ):
+                continue
+
+            gym_lat = float(gym.latitude)
+            gym_lon = float(gym.longitude)
+
+            distance = calculate_distance(
+                user_lat,
+                user_lon,
+                gym_lat,
+                gym_lon
+            )
+
+            print(
+                f"""
+                GYM: {gym.name}
+                USER: {user_lat}, {user_lon}
+                GYM: {gym_lat}, {gym_lon}
+                DISTANCE: {distance} KM
+                RADIUS: {radius} KM
+                """
+            )
+
+            if distance <= radius:
+
+                nearby_gyms.append(
+                    {
+                        "gym": gym,
+                        "distance": round(
+                            distance,
+                            3
+                        )
+                    }
+                )
+
+        # -----------------------------------------
+        # Sort
+        # -----------------------------------------
+
+        nearby_gyms.sort(
+            key=lambda item: item["distance"]
+        )
+
+        # -----------------------------------------
+        # No nearby gym
+        # -----------------------------------------
+
+        if not nearby_gyms:
+
+            return Response(
+                {
+                    "detail": "باشگاهی در نزدیکی شما نیست.",
+                    "user_location": {
+                        "latitude": user_lat,
+                        "longitude": user_lon,
+                    },
+                    "radius": radius,
+                    "available_gyms": [
+                        {
+                            "id": gym.id,
+                            "name": gym.name,
+                            "latitude": gym.latitude,
+                            "longitude": gym.longitude,
+                            "distance": round(
+                                calculate_distance(
+                                    user_lat,
+                                    user_lon,
+                                    float(gym.latitude),
+                                    float(gym.longitude),
+                                ),
+                                3
+                            )
+                        }
+                        for gym in gyms
+                        if (
+                            gym.latitude is not None
+                            and gym.longitude is not None
+                        )
+                    ]
+                },
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # -----------------------------------------
+        # Get top 10
+        # -----------------------------------------
+
+        sorted_gyms = [
+            item["gym"]
+            for item in nearby_gyms[:10]
+        ]
+
+        serializer = GymSerializer(
+            sorted_gyms,
+            many=True
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_200_OK
+        )
 
 # =========================================================
 # GYM DETAIL
