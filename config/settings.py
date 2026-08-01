@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "drf_spectacular",
     "rest_framework_simplejwt.token_blacklist",
-    "sslserver",
     
     'accounts',
     'users',
