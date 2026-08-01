@@ -137,3 +137,78 @@ class MyActiveTokensView(generics.ListAPIView):
             status="active",
             valid_until__gt=timezone.now(),
         ).select_related("gym", "subscription__user")
+        
+        
+from gym_panel.permissions import IsGymStaff, has_gym_access
+
+
+        
+from gym_panel.models import GymVisit
+from gym.models import GymPrice 
+
+
+class ValidateGymTokenView(views.APIView):
+    permission_classes = [IsGymStaff]
+
+    @extend_schema(
+        request=inline_serializer(
+            name="ValidateTokenInput",
+            fields={
+                "token_code": drf_serializers.UUIDField(help_text="کد توکن (UUID)"),
+            }
+        ),
+        responses={200: GymTokenSerializer},
+        summary="اعتبارسنجی و مصرف توکن (توسط باشگاه)",
+    )
+    def post(self, request):
+        serializer = ValidateGymTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        token_code = serializer.validated_data["token_code"]
+
+        try:
+            token = GymToken.objects.select_related(
+                "subscription__user", "gym"
+            ).get(token_code=token_code)
+        except GymToken.DoesNotExist:
+            return Response(
+                {"message": "توکن یافت نشد.", "valid": False},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not has_gym_access(request.user, token.gym_id):
+            return Response(
+                {"message": "شما به این باشگاه دسترسی ندارید.", "valid": False},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if not token.is_valid:
+            return Response(
+                {
+                    "message": "توکن منقضی یا قبلاً استفاده‌شده است.",
+                    "valid": False,
+                    "status": token.status,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        token.use()
+
+        # 📝 ثبت خودکار ورود
+        # فرض: توکن به یه رشته‌ی ورزشی خاص مربوط نیست (فعلاً)، پس قیمت رو صفر یا
+        # از قیمت پایه‌ی باشگاه می‌گیریم. اگه توکن به sport وصل باشه اینجا دقیق‌تر میشه.
+        GymVisit.objects.create(
+            gym=token.gym,
+            sport=None,  # اگه بعداً GymToken.sport رو اضافه کردی، اینجا وصلش کن
+            price=0,     # همینطور، اگه GymToken قیمت نداره فعلاً صفر
+            source="token",
+            token=token,
+        )
+
+        return Response(
+            {
+                "message": "ورود تایید شد.",
+                "valid": True,
+                "token": GymTokenSerializer(token).data,
+            }
+        )

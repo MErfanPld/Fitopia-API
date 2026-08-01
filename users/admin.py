@@ -1,10 +1,13 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from .models import User
+from .forms import CustomUserCreationForm, CustomUserChangeForm
 
 
 @admin.register(User)
-class UserAdmin(admin.ModelAdmin):
+class UserAdmin(BaseUserAdmin):
+    add_form = CustomUserCreationForm
+    form = CustomUserChangeForm
 
     list_display = (
         "id",
@@ -58,6 +61,8 @@ class UserAdmin(admin.ModelAdmin):
                 "is_staff",
                 "is_superuser",
                 "is_staff_user",
+                "groups",
+                "user_permissions",
             )
         }),
         ("زمان‌ها", {
@@ -84,3 +89,5 @@ class UserAdmin(admin.ModelAdmin):
             ),
         }),
     )
+
+    filter_horizontal = ("groups", "user_permissions")
