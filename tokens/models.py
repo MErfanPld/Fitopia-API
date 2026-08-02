@@ -68,12 +68,37 @@ class GymToken(models.Model):
         )
 
     def use(self):
-        """مصرف توکن هنگام ورود به باشگاه"""
+        """مصرف توکن هنگام ورود به باشگاه — از هر مسیری (API/ادمین/شل) صدا زده بشه همین اتفاق می‌افته"""
         if not self.is_valid:
             return False
+
         self.status = "used"
         self.used_at = timezone.now()
         self.save(update_fields=["status", "used_at"])
+
+        # import محلی برای جلوگیری از circular import بین tokens و gym_panel
+        from gym_panel.models import GymVisit, GymCustomer
+
+        GymVisit.objects.create(
+            gym=self.gym,
+            sport=None,   # فعلاً GymToken فیلد sport نداره
+            price=0,      # فعلاً GymToken فیلد price نداره
+            source="token",
+            token=self,
+        )
+
+        fitopia_user = self.subscription.user
+        customer, created = GymCustomer.objects.get_or_create(
+            gym=self.gym,
+            fitopia_user=fitopia_user,
+            defaults={
+                "full_name": fitopia_user.full_name or fitopia_user.username or "بدون نام",
+                "phone": fitopia_user.phone_number or "",
+                "sport": None,
+                "join_date": timezone.now().date(),
+            },
+        )
+
         return True
 
     def expire(self):

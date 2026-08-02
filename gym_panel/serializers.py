@@ -94,3 +94,22 @@ class GymPriceSerializer(serializers.ModelSerializer):
 
     def validate_sport(self, value):
         return value  # باید از لیست Sportهای موجود باشه؛ ModelSerializer خودش چک می‌کنه وجود داره یا نه
+    
+
+from .models import GymCustomer
+
+
+class GymCustomerSerializer(serializers.ModelSerializer):
+    sport_name = serializers.CharField(source="sport.name", read_only=True)
+    is_fitopia_user = serializers.SerializerMethodField()
+
+    class Meta:
+        model = GymCustomer
+        fields = [
+            "id", "full_name", "phone", "sport", "sport_name",
+            "join_date", "is_fitopia_user", "created_at", "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_is_fitopia_user(self, obj):
+        return obj.fitopia_user_id is not None

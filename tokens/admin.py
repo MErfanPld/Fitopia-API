@@ -44,15 +44,15 @@ class GymTokenAdmin(admin.ModelAdmin):
         "subscription__user__full_name",
         "gym__name",
     ]
-    readonly_fields = [
-        "token_code",
-        "issued_at",
-        "valid_until",
-        "used_at",
-        "subscription",
-        "gym",
-    ]
     date_hierarchy = "issued_at"
+
+    def get_readonly_fields(self, request, obj=None):
+        # obj=None یعنی داریم رکورد جدید می‌سازیم (add) → subscription/gym قابل‌انتخاب باشن
+        # obj موجوده یعنی داریم ویرایش می‌کنیم (change) → دیگه قفل بمونن
+        base = ["token_code", "issued_at", "valid_until", "used_at"]
+        if obj is None:
+            return base
+        return base + ["subscription", "gym"]
 
     def token_code_short(self, obj):
         return str(obj.token_code)[:8] + "..."
@@ -63,21 +63,12 @@ class GymTokenAdmin(admin.ModelAdmin):
     user_display.short_description = "کاربر"
 
     def status_badge(self, obj):
-        colors = {
-            "active": "green",
-            "used": "gray",
-            "expired": "red",
-        }
-        labels = {
-            "active": "فعال",
-            "used": "استفاده‌شده",
-            "expired": "منقضی",
-        }
+        colors = {"active": "green", "used": "gray", "expired": "red"}
+        labels = {"active": "فعال", "used": "استفاده‌شده", "expired": "منقضی"}
         color = colors.get(obj.status, "black")
         label = labels.get(obj.status, obj.status)
         return format_html(
             '<span style="color: {}; font-weight: bold;">{}</span>',
-            color,
-            label,
+            color, label,
         )
     status_badge.short_description = "وضعیت"

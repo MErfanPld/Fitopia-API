@@ -319,3 +319,41 @@ class TicketMessageCreateView(GenericAPIView):
             message=serializer.validated_data["message"],
         )
         return Response(GymTicketMessageSerializer(msg).data, status=status.HTTP_201_CREATED)
+    
+
+from .models import GymCustomer
+from .serializers import GymCustomerSerializer
+
+
+@extend_schema(tags=["gym-panel"])
+class GymCustomerListCreateView(generics.ListCreateAPIView):
+    serializer_class = GymCustomerSerializer
+    permission_classes = [IsGymStaff]
+
+    def get_queryset(self):
+        gym_id = self.kwargs["gym_id"]
+        _get_gym_or_403(self.request.user, gym_id)
+        qs = GymCustomer.objects.filter(gym_id=gym_id).select_related("sport")
+
+        search = self.request.query_params.get("search")
+        if search:
+            qs = qs.filter(
+                models.Q(full_name__icontains=search) | models.Q(phone__icontains=search)
+            )
+        return qs
+
+    def perform_create(self, serializer):
+        gym_id = self.kwargs["gym_id"]
+        gym = _get_gym_or_403(self.request.user, gym_id)
+        serializer.save(gym=gym)
+
+
+@extend_schema(tags=["gym-panel"])
+class GymCustomerUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = GymCustomerSerializer
+    permission_classes = [IsGymStaff]
+
+    def get_queryset(self):
+        gym_id = self.kwargs["gym_id"]
+        _get_gym_or_403(self.request.user, gym_id)
+        return GymCustomer.objects.filter(gym_id=gym_id)

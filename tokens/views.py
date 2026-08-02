@@ -1,9 +1,11 @@
 from rest_framework import views, generics, status
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers as drf_serializers
+
+from gym_panel.permissions import IsGymStaff, has_gym_access
 
 from .models import GymToken
 from .serializers import (
@@ -64,90 +66,10 @@ class ValidateGymTokenView(views.APIView):
     """
     اعتبارسنجی توکن توسط باشگاه.
     باشگاه کد توکن رو اسکن میکنه و این endpoint تایید میکنه.
-    بعد از تایید توکن مصرف‌شده میشه.
+    فقط باشگاه‌دارِ متصل به همون gym مجاز به این کار است.
+    بعد از تایید، توکن مصرف‌شده می‌شود و GymVisit + GymCustomer
+    خودکار (از داخل مدل GymToken.use()) ساخته می‌شوند.
     """
-    permission_classes = [IsAuthenticated]
-
-    @extend_schema(
-        request=inline_serializer(
-            name="ValidateTokenInput",
-            fields={
-                "token_code": drf_serializers.UUIDField(help_text="کد توکن (UUID)"),
-            }
-        ),
-        responses={200: GymTokenSerializer},
-        summary="اعتبارسنجی و مصرف توکن (توسط باشگاه)",
-    )
-    def post(self, request):
-        serializer = ValidateGymTokenSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        token_code = serializer.validated_data["token_code"]
-
-        try:
-            token = GymToken.objects.select_related(
-                "subscription__user", "gym"
-            ).get(token_code=token_code)
-        except GymToken.DoesNotExist:
-            return Response(
-                {"message": "توکن یافت نشد.", "valid": False},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        if not token.is_valid:
-            return Response(
-                {
-                    "message": "توکن منقضی یا قبلاً استفاده‌شده است.",
-                    "valid": False,
-                    "status": token.status,
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        token.use()
-
-        return Response(
-            {
-                "message": "ورود تایید شد.",
-                "valid": True,
-                "token": GymTokenSerializer(token).data,
-            }
-        )
-
-
-class MyGymTokensView(generics.ListAPIView):
-    """لیست توکن‌های کاربر"""
-    serializer_class = GymTokenSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return GymToken.objects.filter(
-            subscription__user=self.request.user
-        ).select_related("gym", "subscription__user").order_by("-issued_at")
-
-
-class MyActiveTokensView(generics.ListAPIView):
-    """توکن‌های فعال کاربر"""
-    serializer_class = GymTokenSerializer
-    permission_classes = [IsAuthenticated]
-
-    def get_queryset(self):
-        return GymToken.objects.filter(
-            subscription__user=self.request.user,
-            status="active",
-            valid_until__gt=timezone.now(),
-        ).select_related("gym", "subscription__user")
-        
-        
-from gym_panel.permissions import IsGymStaff, has_gym_access
-
-
-        
-from gym_panel.models import GymVisit
-from gym.models import GymPrice 
-
-
-class ValidateGymTokenView(views.APIView):
     permission_classes = [IsGymStaff]
 
     @extend_schema(
@@ -194,17 +116,6 @@ class ValidateGymTokenView(views.APIView):
 
         token.use()
 
-        # 📝 ثبت خودکار ورود
-        # فرض: توکن به یه رشته‌ی ورزشی خاص مربوط نیست (فعلاً)، پس قیمت رو صفر یا
-        # از قیمت پایه‌ی باشگاه می‌گیریم. اگه توکن به sport وصل باشه اینجا دقیق‌تر میشه.
-        GymVisit.objects.create(
-            gym=token.gym,
-            sport=None,  # اگه بعداً GymToken.sport رو اضافه کردی، اینجا وصلش کن
-            price=0,     # همینطور، اگه GymToken قیمت نداره فعلاً صفر
-            source="token",
-            token=token,
-        )
-
         return Response(
             {
                 "message": "ورود تایید شد.",
@@ -212,3 +123,27 @@ class ValidateGymTokenView(views.APIView):
                 "token": GymTokenSerializer(token).data,
             }
         )
+
+
+class MyGymTokensView(generics.ListAPIView):
+    """لیست توکن‌های کاربر"""
+    serializer_class = GymTokenSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return GymToken.objects.filter(
+            subscription__user=self.request.user
+        ).select_related("gym", "subscription__user").order_by("-issued_at")
+
+
+class MyActiveTokensView(generics.ListAPIView):
+    """توکن‌های فعال کاربر"""
+    serializer_class = GymTokenSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return GymToken.objects.filter(
+            subscription__user=self.request.user,
+            status="active",
+            valid_until__gt=timezone.now(),
+        ).select_related("gym", "subscription__user")

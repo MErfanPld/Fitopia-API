@@ -2,6 +2,8 @@ from django.urls import path
 from .views import (
     GymCoachListCreateView,
     GymCoachUpdateDeleteView,
+    GymCustomerListCreateView,
+    GymCustomerUpdateDeleteView,
     GymPanelLoginView,
     MyGymsView,
     GymPanelUpdateView,
@@ -27,6 +29,10 @@ urlpatterns = [
 
     path("gyms/<int:gym_id>/tickets/<int:pk>/", TicketDetailView.as_view(), name="gym-panel-ticket-detail"),
     path("gyms/<int:gym_id>/tickets/<int:ticket_id>/messages/", TicketMessageCreateView.as_view(), name="gym-panel-ticket-message"),
+
+    path("gyms/<int:gym_id>/customers/", GymCustomerListCreateView.as_view(), name="gym-panel-customers"),
+    path("gyms/<int:gym_id>/customers/<int:pk>/", GymCustomerUpdateDeleteView.as_view(), name="gym-panel-customer-detail"),
+
 
     path("gyms/<int:gym_id>/prices/", GymPriceListCreateView.as_view(), name="gym-panel-prices"),
     path("gyms/<int:gym_id>/prices/<int:pk>/", GymPriceUpdateDeleteView.as_view(), name="gym-panel-price-detail"),

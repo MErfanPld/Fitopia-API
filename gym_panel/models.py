@@ -166,3 +166,35 @@ class GymTicketMessage(models.Model):
 
     def __str__(self):
         return f"#{self.ticket_id} - {self.get_sender_role_display()} - {self.created_at:%Y-%m-%d %H:%M}"
+    
+    
+    
+class GymCustomer(models.Model):
+    gym = models.ForeignKey(
+        "gym.Gym", on_delete=models.CASCADE,
+        related_name="customers", verbose_name="باشگاه"
+    )
+    fitopia_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="gym_customer_profiles",
+        verbose_name="کاربر فیتوپیا (در صورت وجود)"
+    )
+    full_name = models.CharField(max_length=150, verbose_name="نام و نام خانوادگی")
+    phone = models.CharField(max_length=15, verbose_name="شماره تماس")
+    sport = models.ForeignKey(
+        "gym.Sport", on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="gym_customers", verbose_name="رشته ورزشی"
+    )
+    join_date = models.DateField(verbose_name="تاریخ عضویت")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاریخ ثبت")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="آخرین ویرایش")
+
+    class Meta:
+        verbose_name = "مشتری باشگاه"
+        verbose_name_plural = "مشتریان باشگاه"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.full_name} - {self.gym.name}"
+    
+
