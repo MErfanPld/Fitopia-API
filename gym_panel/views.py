@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.db import models  
 
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema
@@ -333,23 +334,40 @@ class GymCustomerListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         gym_id = self.kwargs["gym_id"]
         _get_gym_or_403(self.request.user, gym_id)
-        qs = GymCustomer.objects.filter(gym_id=gym_id).select_related("sport")
+        qs = GymCustomer.objects.filter(gym_id=gym_id).select_related("sport", "added_by")
 
         search = self.request.query_params.get("search")
         if search:
             qs = qs.filter(
                 models.Q(full_name__icontains=search) | models.Q(phone__icontains=search)
             )
+
+        source = self.request.query_params.get("source") 
+        if source:
+            qs = qs.filter(source=source)
+
         return qs
 
     def perform_create(self, serializer):
         gym_id = self.kwargs["gym_id"]
         gym = _get_gym_or_403(self.request.user, gym_id)
-        serializer.save(gym=gym)
+        serializer.save(
+            gym=gym,
+            source="manual",        
+            added_by=self.request.user,
+            sessions_remaining=serializer.validated_data.get("sessions_total"),
+        )
 
 
 @extend_schema(tags=["gym-panel"])
 class GymCustomerUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = GymCustomerSerializer
+    permission_classes = [IsGymStaff]
+
+    def get_queryset(self):
+        gym_id = self.kwargs["gym_id"]
+        _get_gym_or_403(self.request.user, gym_id)
+        return GymCustomer.objects.filter(gym_id=gym_id)
     serializer_class = GymCustomerSerializer
     permission_classes = [IsGymStaff]
 

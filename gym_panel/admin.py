@@ -1,8 +1,14 @@
 from django.contrib import admin
 from django.utils import timezone
 
-from .models import GymStaffAccess, GymChangeRequest, GymTicketMessage
+from .models import GymCustomer, GymStaffAccess, GymChangeRequest, GymTicketMessage
 from gym.models import Sport
+
+@admin.register(GymCustomer)
+class GymCustomerAdmin(admin.ModelAdmin):
+    list_display = ("full_name", "phone", "gym", "sport", "source", "sessions_remaining", "join_date")
+    list_filter = ("source", "gym", "sport")
+    search_fields = ("full_name", "phone")
 
 
 @admin.register(GymStaffAccess)

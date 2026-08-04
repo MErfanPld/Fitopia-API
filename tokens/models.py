@@ -96,6 +96,7 @@ class GymToken(models.Model):
                 "phone": fitopia_user.phone_number or "",
                 "sport": None,
                 "join_date": timezone.now().date(),
+                "source": "token",
             },
         )
 

@@ -169,7 +169,13 @@ class GymTicketMessage(models.Model):
     
     
     
+
 class GymCustomer(models.Model):
+    SOURCE_CHOICES = [
+        ("token", "توکن/اشتراک فیتوپیا"),
+        ("manual", "ثبت دستی توسط باشگاه"),
+    ]
+
     gym = models.ForeignKey(
         "gym.Gym", on_delete=models.CASCADE,
         related_name="customers", verbose_name="باشگاه"
@@ -185,6 +191,26 @@ class GymCustomer(models.Model):
         "gym.Sport", on_delete=models.SET_NULL,
         null=True, blank=True, related_name="gym_customers", verbose_name="رشته ورزشی"
     )
+
+    source = models.CharField(
+        max_length=10, choices=SOURCE_CHOICES, default="manual",
+        verbose_name="منبع"
+    )
+    added_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="added_gym_customers",
+        verbose_name="ثبت‌شده توسط (کارمند/باشگاه‌دار)"
+    )
+    sessions_total = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name="تعداد کل جلسات (بسته)"
+    )
+    sessions_remaining = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name="جلسات باقی‌مانده"
+    )
+    price_paid = models.PositiveIntegerField(
+        null=True, blank=True, verbose_name="مبلغ پرداختی (تومان)"
+    )
+
     join_date = models.DateField(verbose_name="تاریخ عضویت")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاریخ ثبت")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="آخرین ویرایش")
@@ -196,5 +222,3 @@ class GymCustomer(models.Model):
 
     def __str__(self):
         return f"{self.full_name} - {self.gym.name}"
-    
-
