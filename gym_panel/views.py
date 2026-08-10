@@ -43,7 +43,7 @@ def _get_gym_or_403(user, gym_id):
 
 
 # =========================
-# 🔐 AUTH
+# AUTH
 # =========================
 @extend_schema(tags=["gym-panel"])
 class GymPanelLoginView(GenericAPIView):
@@ -104,7 +104,7 @@ class MyGymsView(generics.ListAPIView):
 
 
 # =========================
-# ✏️ ویرایش آزاد اطلاعات باشگاه
+# ویرایش آزاد اطلاعات باشگاه
 # =========================
 class GymPanelUpdateView(GenericAPIView):
     serializer_class = GymPanelUpdateSerializer
@@ -125,7 +125,7 @@ class GymPanelUpdateView(GenericAPIView):
 
 
 # =========================
-# 🎫 تیکت برای فیلدهای محدود (name/address/lat/long)
+# تیکت برای فیلدهای محدود (name/address/lat/long)
 # =========================
 class GymFieldEditRequestView(GenericAPIView):
     serializer_class = FieldEditRequestSerializer
@@ -158,7 +158,7 @@ class GymFieldEditRequestView(GenericAPIView):
 
 
 # =========================
-# 🆕 پیشنهاد رشته‌ی ورزشی جدید
+# پیشنهاد رشته‌ی ورزشی جدید
 # =========================
 class SuggestNewSportView(GenericAPIView):
     serializer_class = SuggestNewSportSerializer
@@ -191,7 +191,7 @@ class SuggestNewSportView(GenericAPIView):
 
 
 # =========================
-# 📋 لیست تیکت‌های خودم
+# لیست تیکت‌های خودم
 # =========================
 @extend_schema(tags=["gym-panel"])
 class MyChangeRequestsView(generics.ListAPIView):
@@ -205,7 +205,7 @@ class MyChangeRequestsView(generics.ListAPIView):
 
 
 # =========================
-# 💰 مدیریت رشته‌های موجود باشگاه (GymPrice) — آزاد
+# مدیریت رشته‌های موجود باشگاه (GymPrice)
 # =========================
 @extend_schema(tags=["gym-panel"])
 class GymPriceListCreateView(generics.ListCreateAPIView):
@@ -246,8 +246,8 @@ class GymPriceUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
         sport = instance.sport
         instance.delete()
         gym.sports.remove(sport)
-        
-        
+
+
 from gym.models import Gym, GymPrice, GymCoach
 from .serializers import GymCoachSerializer
 
@@ -277,8 +277,8 @@ class GymCoachUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
         gym_id = self.kwargs["gym_id"]
         _get_gym_or_403(self.request.user, gym_id)
         return GymCoach.objects.filter(gym_id=gym_id)
-    
-    
+
+
 from .serializers import GymTicketMessageCreateSerializer, GymTicketMessageSerializer
 from .models import GymTicketMessage
 
@@ -320,7 +320,7 @@ class TicketMessageCreateView(GenericAPIView):
             message=serializer.validated_data["message"],
         )
         return Response(GymTicketMessageSerializer(msg).data, status=status.HTTP_201_CREATED)
-    
+
 
 from .models import GymCustomer
 from .serializers import GymCustomerSerializer
@@ -342,7 +342,7 @@ class GymCustomerListCreateView(generics.ListCreateAPIView):
                 models.Q(full_name__icontains=search) | models.Q(phone__icontains=search)
             )
 
-        source = self.request.query_params.get("source") 
+        source = self.request.query_params.get("source")
         if source:
             qs = qs.filter(source=source)
 
@@ -353,7 +353,7 @@ class GymCustomerListCreateView(generics.ListCreateAPIView):
         gym = _get_gym_or_403(self.request.user, gym_id)
         serializer.save(
             gym=gym,
-            source="manual",        
+            source="manual",
             added_by=self.request.user,
             sessions_remaining=serializer.validated_data.get("sessions_total"),
         )
@@ -361,13 +361,6 @@ class GymCustomerListCreateView(generics.ListCreateAPIView):
 
 @extend_schema(tags=["gym-panel"])
 class GymCustomerUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
-    serializer_class = GymCustomerSerializer
-    permission_classes = [IsGymStaff]
-
-    def get_queryset(self):
-        gym_id = self.kwargs["gym_id"]
-        _get_gym_or_403(self.request.user, gym_id)
-        return GymCustomer.objects.filter(gym_id=gym_id)
     serializer_class = GymCustomerSerializer
     permission_classes = [IsGymStaff]
 
