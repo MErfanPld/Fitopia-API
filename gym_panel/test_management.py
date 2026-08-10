@@ -179,3 +179,12 @@ class ManagementExpansionTests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+    def test_staff_permission_model_and_acl(self):
+        """Regression: StaffPermission must exist and role defaults must resolve."""
+        from gym_panel.models import StaffPermission
+        from gym_panel.permissions import user_has_perm, ROLE_DEFAULTS
+        self.assertTrue(len(StaffPermission.CODE_CHOICES) >= 10)
+        self.assertIn("customer.view", ROLE_DEFAULTS["receptionist"])
+        self.assertTrue(user_has_perm(self.owner, self.gym.id, "finance.report"))
+        self.assertFalse(user_has_perm(self.other_owner, self.gym.id, "finance.report"))
