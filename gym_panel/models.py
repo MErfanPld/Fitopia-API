@@ -6,6 +6,10 @@ from django.conf import settings
 class GymStaffAccess(models.Model):
     ROLE_CHOICES = [
         ("owner", "مالک"),
+        ("manager", "مدیر"),
+        ("receptionist", "پذیرش"),
+        ("accountant", "حسابدار"),
+        ("coach", "مربی"),
         ("staff", "کارمند"),
     ]
 
@@ -22,11 +26,16 @@ class GymStaffAccess(models.Model):
         verbose_name="باشگاه",
     )
     role = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=ROLE_CHOICES,
         default="owner",
         verbose_name="نقش",
     )
+    is_active = models.BooleanField(default=True, verbose_name="فعال")
+    start_date = models.DateField(null=True, blank=True, verbose_name="تاریخ شروع")
+    end_date = models.DateField(null=True, blank=True, verbose_name="تاریخ پایان")
+    employee_number = models.CharField(max_length=50, blank=True, verbose_name="کد پرسنلی")
+
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاریخ ایجاد")
 
     class Meta:
@@ -43,6 +52,16 @@ class GymVisit(models.Model):
     SOURCE_CHOICES = [
         ("token", "توکن فیتوپیا"),
         ("direct", "ثبت مستقیم باشگاه"),
+        ("qr", "QR"),
+        ("manual", "دستی"),
+        ("membership", "عضویت"),
+        ("single_session", "جلسه تکی"),
+    ]
+    METHOD_CHOICES = [
+        ("qr", "QR"),
+        ("token", "توکن"),
+        ("manual", "دستی"),
+        ("membership", "عضویت"),
     ]
 
     gym = models.ForeignKey(
@@ -60,10 +79,11 @@ class GymVisit(models.Model):
         verbose_name="رشته ورزشی",
     )
     price = models.IntegerField(
+        default=0,
         verbose_name="قیمت (تومان) - در لحظه ثبت",
     )
     source = models.CharField(
-        max_length=10,
+        max_length=20,
         choices=SOURCE_CHOICES,
         verbose_name="منبع",
     )
@@ -93,6 +113,21 @@ class GymVisit(models.Model):
         related_name="registered_visits",
         verbose_name="ثبت‌شده توسط",
     )
+    customer = models.ForeignKey(
+        "GymCustomer",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="visits",
+        verbose_name="مشتری",
+    )
+    check_in_at = models.DateTimeField(null=True, blank=True, verbose_name="زمان ورود")
+    check_out_at = models.DateTimeField(null=True, blank=True, verbose_name="زمان خروج")
+    method = models.CharField(
+        max_length=20, choices=METHOD_CHOICES, blank=True, default="manual",
+        verbose_name="روش ثبت",
+    )
+    is_open = models.BooleanField(default=False, verbose_name="حضور فعال")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاریخ ثبت")
 
     class Meta:
@@ -101,7 +136,7 @@ class GymVisit(models.Model):
         ordering = ["-created_at"]
 
     def __str__(self):
-        who = self.token.subscription.user if self.token_id else self.guest_name
+        who = self.token.subscription.user if self.token_id else (self.guest_name or self.customer_id)
         return f"{self.gym.name} - {who} - {self.created_at:%Y-%m-%d %H:%M}"
     
     
@@ -212,6 +247,43 @@ class GymCustomer(models.Model):
     )
 
     join_date = models.DateField(verbose_name="تاریخ عضویت")
+    photo = models.ImageField(
+        upload_to="uploads/gym/customers/", null=True, blank=True, verbose_name="عکس"
+    )
+    membership_status = models.CharField(
+        max_length=20,
+        choices=[
+            ("active", "فعال"),
+            ("expired", "منقضی"),
+            ("suspended", "معلق"),
+            ("inactive", "غیرفعال"),
+        ],
+        default="active",
+        verbose_name="وضعیت عضویت",
+    )
+    membership_type = models.CharField(
+        max_length=30,
+        choices=[
+            ("session_pack", "بسته جلسه"),
+            ("monthly", "ماهانه"),
+            ("course", "دوره"),
+            ("single", "تکی"),
+            ("other", "سایر"),
+        ],
+        default="session_pack",
+        blank=True,
+        verbose_name="نوع عضویت",
+    )
+    membership_start = models.DateField(null=True, blank=True, verbose_name="شروع عضویت")
+    membership_end = models.DateField(null=True, blank=True, verbose_name="پایان عضویت")
+    coach = models.ForeignKey(
+        "gym.GymCoach", on_delete=models.SET_NULL, null=True, blank=True,
+        related_name="customers", verbose_name="مربی"
+    )
+    sessions_used = models.PositiveIntegerField(default=0, verbose_name="جلسات مصرف‌شده")
+    notes = models.TextField(blank=True, verbose_name="یادداشت")
+    is_active = models.BooleanField(default=True, verbose_name="فعال")
+    last_visit_at = models.DateTimeField(null=True, blank=True, verbose_name="آخرین حضور")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="تاریخ ثبت")
     updated_at = models.DateTimeField(auto_now=True, verbose_name="آخرین ویرایش")
 
@@ -222,3 +294,17 @@ class GymCustomer(models.Model):
 
     def __str__(self):
         return f"{self.full_name} - {self.gym.name}"
+
+# Expansion domain models (offerings, courses, finance, ACL, audit)
+from .expansion_models import (  # noqa: E402,F401
+    GymOffering,
+    GymOfferingSchedule,
+    Course,
+    CourseEnrollment,
+    SingleSessionPurchase,
+    StaffPermission,
+    FinanceTransaction,
+    CustomerPayment,
+    Refund,
+    AuditLog,
+)
