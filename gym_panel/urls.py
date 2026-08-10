@@ -36,3 +36,8 @@ urlpatterns = [
     path("gyms/<int:gym_id>/prices/", GymPriceListCreateView.as_view(), name="gym-panel-prices"),
     path("gyms/<int:gym_id>/prices/<int:pk>/", GymPriceUpdateDeleteView.as_view(), name="gym-panel-price-detail"),
 ]
+
+from django.urls import include
+urlpatterns += [
+    path("", include("gym_panel.management_urls")),
+]
