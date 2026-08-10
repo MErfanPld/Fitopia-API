@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model, authenticate
-from django.contrib.auth.hashers import make_password
+from django.db.models import Q
 
 from rest_framework import generics, status
 from rest_framework.response import Response
@@ -8,8 +8,9 @@ from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 
-from drf_spectacular.utils import extend_schema, OpenApiExample
+from drf_spectacular.utils import extend_schema
 
 from .serializers import (
     LogoutSerializer,
@@ -17,18 +18,14 @@ from .serializers import (
     LoginSerializer,
     UserProfileSerializer,
     UserProfileUpdateSerializer,
+    ChangePasswordSerializer,
 )
 
 from users.serializers import UserSerializer
-# from .utils import send_sms
-# from .models import PasswordResetCode
 
 User = get_user_model()
 
 
-# =========================
-# 🔐 TOKEN HELPER
-# =========================
 def get_tokens(user):
     refresh = RefreshToken.for_user(user)
     return {
@@ -37,27 +34,31 @@ def get_tokens(user):
     }
 
 
-# =========================
-# 👤 REGISTER
-# =========================
+def resolve_user_by_identifier(identifier):
+    """Resolve user by phone_number or username."""
+    return User.objects.filter(
+        Q(phone_number=identifier) | Q(username=identifier)
+    ).first()
+
+
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = RegisterSerializer
     permission_classes = [AllowAny]
 
-    def perform_create(self, serializer):
-        user = serializer.save()
-        self.tokens = get_tokens(user)
-
     def create(self, request, *args, **kwargs):
-        response = super().create(request, *args, **kwargs)
-        response.data = self.tokens
-        return response
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(
+            {
+                "tokens": get_tokens(user),
+                "user": UserSerializer(user).data,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
-# =========================
-# 🔐 LOGIN
-# =========================
 class LoginView(GenericAPIView):
     serializer_class = LoginSerializer
     permission_classes = [AllowAny]
@@ -66,59 +67,53 @@ class LoginView(GenericAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        username = serializer.validated_data["username"]
+        identifier = serializer.validated_data["username"]
         password = serializer.validated_data["password"]
 
-        user = authenticate(username=username, password=password)
-
-        if not user:
+        user = resolve_user_by_identifier(identifier)
+        if not user or not user.check_password(password):
             return Response(
                 {"error": "شماره/نام کاربری یا رمز اشتباه است"},
-                status=status.HTTP_401_UNAUTHORIZED
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+
+        if not user.is_active:
+            return Response(
+                {"error": "حساب کاربری غیرفعال است"},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         return Response({
             "tokens": get_tokens(user),
             "user": UserSerializer(user).data,
-            "is_staff_user": user.is_staff_user
+            "is_staff_user": user.is_staff_user,
         })
 
 
-# =========================
-# 🚪 LOGOUT
-# =========================
 class LogoutView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        refresh_token = request.data.get("refresh")
+        if not refresh_token:
+            return Response(
+                {"error": "توکن اجباری است"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         try:
-            refresh_token = request.data.get("refresh")
-
-            if not refresh_token:
-                return Response(
-                    {"error": "توکن اجباری است"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
             token = RefreshToken(refresh_token)
-
             token.blacklist()
-
+        except TokenError:
             return Response(
-                {"message": "خروج موفق"},
-                status=status.HTTP_200_OK
+                {"error": "توکن نامعتبر است"},
+                status=status.HTTP_400_BAD_REQUEST,
             )
-
-        except Exception as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        return Response(
+            {"message": "خروج موفق"},
+            status=status.HTTP_200_OK,
+        )
 
 
-# # =========================
-# #  PROFILE
-# # =========================
 class UserProfileAPIView(generics.RetrieveUpdateAPIView):
     permission_classes = [IsAuthenticated]
 
@@ -131,96 +126,21 @@ class UserProfileAPIView(generics.RetrieveUpdateAPIView):
         return UserProfileSerializer
 
 
-# # =========================
-# # 🔑 CHANGE PASSWORD
-# # =========================
-# class ChangePasswordView(APIView):
-#     permission_classes = [IsAuthenticated]
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
 
-#     @extend_schema(
-#         request=ChangePasswordSerializer,
-#         examples=[
-#             OpenApiExample(
-#                 "مثال تغییر پسورد",
-#                 value={
-#                     "old_password": "12345678",
-#                     "new_password": "newpass123",
-#                     "confirm_password": "newpass123",
-#                 },
-#                 request_only=True,
-#             )
-#         ],
-#     )
-#     def post(self, request):
-#         serializer = ChangePasswordSerializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
+    @extend_schema(request=ChangePasswordSerializer)
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
 
-#         user = request.user
-#         old_password = serializer.validated_data["old_password"]
-#         new_password = serializer.validated_data["new_password"]
+        user = request.user
+        if not user.check_password(serializer.validated_data["old_password"]):
+            return Response(
+                {"detail": "پسورد فعلی اشتباه است"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-#         if not user.check_password(old_password):
-#             return Response(
-#                 {"detail": "پسورد فعلی اشتباه است"},
-#                 status=status.HTTP_400_BAD_REQUEST,
-#             )
-
-#         user.set_password(new_password)
-#         user.save()
-
-#         return Response({"detail": "پسورد تغییر کرد"}, status=200)
-
-
-# # =========================
-# # 📩 SEND RESET CODE
-# # =========================
-# class SendResetCodeView(generics.GenericAPIView):
-#     serializer_class = SendResetCodeSerializer
-#     permission_classes = [AllowAny]
-
-#     def post(self, request):
-#         serializer = self.get_serializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-
-#         user = serializer.validated_data["user"]
-
-#         reset_code = PasswordResetCode.generate_code(user)
-#         send_sms(user.phone_number, reset_code.code)
-
-#         return Response({"message": "کد ارسال شد"}, status=200)
-
-
-# # =========================
-# # ✅ VERIFY CODE
-# # =========================
-# class VerifyResetCodeView(generics.GenericAPIView):
-#     serializer_class = VerifyResetCodeSerializer
-#     permission_classes = [AllowAny]
-
-#     def post(self, request):
-#         serializer = self.get_serializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-
-#         return Response({"message": "کد صحیح است"}, status=200)
-
-
-# # =========================
-# # 🔁 RESET PASSWORD
-# # =========================
-# class ResetPasswordView(generics.GenericAPIView):
-#     serializer_class = ResetPasswordSerializer
-#     permission_classes = [AllowAny]
-
-#     def post(self, request):
-#         serializer = self.get_serializer(data=request.data)
-#         serializer.is_valid(raise_exception=True)
-
-#         user = serializer.validated_data["user"]
-#         new_password = serializer.validated_data["password"]
-
-#         user.password = make_password(new_password)
-#         user.save()
-
-#         PasswordResetCode.objects.filter(user=user).delete()
-
-#         return Response({"message": "رمز تغییر کرد"}, status=200)
+        user.set_password(serializer.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        return Response({"detail": "پسورد با موفقیت تغییر کرد"}, status=status.HTTP_200_OK)
