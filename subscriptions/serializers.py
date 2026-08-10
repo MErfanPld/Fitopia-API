@@ -3,6 +3,7 @@ from django.utils import timezone
 from .models import Plan, UserSubscription, UserDiscountProfile
 from gym.models import Gym
 
+
 class PlanSerializer(serializers.ModelSerializer):
     gyms_count = serializers.SerializerMethodField()
 
@@ -91,23 +92,13 @@ class PurchaseSubscriptionSerializer(serializers.Serializer):
 
     def validate_plan_id(self, value):
         try:
-            plan = Plan.objects.get(id=value, is_active=True)
+            Plan.objects.get(id=value, is_active=True)
         except Plan.DoesNotExist:
             raise serializers.ValidationError("پلن مورد نظر یافت نشد یا غیرفعال است.")
         return value
 
     def validate(self, attrs):
-        user = self.context["request"].user
-        # بررسی اشتراک فعال
-        active = UserSubscription.objects.filter(
-            user=user,
-            status="active",
-            end_date__gt=timezone.now()
-        ).exists()
-        if active:
-            raise serializers.ValidationError(
-                "شما در حال حاضر یک اشتراک فعال دارید."
-            )
+        # Active subscription (if any) is cancelled in PurchaseSubscriptionView
         return attrs
 
 
@@ -120,8 +111,8 @@ class UserDiscountProfileSerializer(serializers.ModelSerializer):
             "is_used",
             "updated_at",
         ]
-        
-        
+
+
 class GymSerializer(serializers.ModelSerializer):
     class Meta:
         model = Gym
