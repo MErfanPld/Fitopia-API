@@ -7,7 +7,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework import serializers as drf_serializers
 from drf_spectacular.utils import extend_schema, inline_serializer
 
-from gym_panel.permissions import IsGymStaff, has_gym_access
+from gym_panel.permissions import has_gym_access
 
 from .models import GymToken
 from .serializers import (
@@ -24,11 +24,15 @@ class RequestGymTokenView(views.APIView):
         request=inline_serializer(
             name="RequestTokenInput",
             fields={
-                "gym_id": drf_serializers.IntegerField(help_text="آیدی باشگاه"),
+                "gym_id": drf_serializers.IntegerField(
+                    required=False,
+                    allow_null=True,
+                    help_text="آیدی باشگاه؛ اگر نباشد بلیت سراسری صادر می‌شود",
+                ),
             },
         ),
         responses={201: GymTokenSerializer},
-        summary="دریافت توکن روزانه باشگاه",
+        summary="دریافت توکن باشگاه یا بلیت سراسری",
     )
     def post(self, request):
         serializer = RequestGymTokenSerializer(
@@ -38,7 +42,7 @@ class RequestGymTokenView(views.APIView):
         serializer.is_valid(raise_exception=True)
 
         subscription = serializer.validated_data["subscription"]
-        gym_id = serializer.validated_data["gym_id"]
+        gym_id = serializer.validated_data.get("gym_id")
 
         with transaction.atomic():
             from subscriptions.models import UserSubscription
@@ -58,48 +62,74 @@ class RequestGymTokenView(views.APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            existing = GymToken.objects.filter(
-                subscription=locked_sub,
-                gym_id=gym_id,
-                status="active",
-                valid_until__gt=timezone.now(),
-            ).exists()
-            if existing:
-                return Response(
-                    {
-                        "message": (
-                            "شما یک توکن فعال برای این باشگاه دارید. "
-                            "ابتدا آن را استفاده کنید."
-                        )
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
+            if gym_id is not None:
+                existing = GymToken.objects.filter(
+                    subscription=locked_sub,
+                    gym_id=gym_id,
+                    status="active",
+                    valid_until__gt=timezone.now(),
+                ).exists()
+                if existing:
+                    return Response(
+                        {
+                            "message": (
+                                "شما یک توکن فعال برای این باشگاه دارید. "
+                                "ابتدا آن را استفاده کنید."
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+            else:
+                existing = GymToken.objects.filter(
+                    subscription=locked_sub,
+                    gym__isnull=True,
+                    status="active",
+                    valid_until__gt=timezone.now(),
+                ).exists()
+                if existing:
+                    return Response(
+                        {
+                            "message": (
+                                "شما یک بلیت سراسری فعال دارید. "
+                                "ابتدا آن را استفاده کنید."
+                            )
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
 
             token = GymToken.objects.create(
                 subscription=locked_sub,
                 gym_id=gym_id,
             )
-            locked_sub.tokens_used += 1
+            locked_sub.tokens_used = (locked_sub.tokens_used or 0) + 1
             locked_sub.save(update_fields=["tokens_used"])
 
         return Response(
             {
-                "message": "توکن با موفقیت صادر شد.",
+                "message": (
+                    "بلیت سراسری صادر شد."
+                    if gym_id is None
+                    else "توکن با موفقیت صادر شد."
+                ),
                 "token": GymTokenSerializer(token).data,
-                "tokens_remaining": locked_sub.tokens_remaining,
             },
             status=status.HTTP_201_CREATED,
         )
 
 
 class ValidateGymTokenView(views.APIView):
-    permission_classes = [IsGymStaff]
+    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         request=inline_serializer(
             name="ValidateTokenInput",
             fields={
-                "token_code": drf_serializers.UUIDField(help_text="کد توکن (UUID)"),
+                "token_code": drf_serializers.UUIDField(),
+                "gym_id": drf_serializers.IntegerField(
+                    required=False,
+                    allow_null=True,
+                    help_text="باشگاه محل اسکن (برای بلیت سراسری الزامی)",
+                ),
             },
         ),
         responses={200: GymTokenSerializer},
@@ -110,10 +140,11 @@ class ValidateGymTokenView(views.APIView):
         serializer.is_valid(raise_exception=True)
 
         token_code = serializer.validated_data["token_code"]
+        scan_gym_id = serializer.validated_data.get("gym_id")
 
         try:
             token = GymToken.objects.select_related(
-                "subscription__user", "gym"
+                "subscription__user", "subscription__plan", "gym"
             ).get(token_code=token_code)
         except GymToken.DoesNotExist:
             return Response(
@@ -121,7 +152,37 @@ class ValidateGymTokenView(views.APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        if not has_gym_access(request.user, token.gym_id):
+        if token.gym_id is not None:
+            target_gym_id = token.gym_id
+            if scan_gym_id is not None and int(scan_gym_id) != int(token.gym_id):
+                return Response(
+                    {
+                        "message": "این توکن مخصوص باشگاه دیگری است.",
+                        "valid": False,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            if scan_gym_id is None:
+                return Response(
+                    {
+                        "message": "برای بلیت سراسری، gym_id محل اسکن الزامی است.",
+                        "valid": False,
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            target_gym_id = int(scan_gym_id)
+            plan = token.subscription.plan if token.subscription_id else None
+            if not plan or not plan.gyms.filter(id=target_gym_id).exists():
+                return Response(
+                    {
+                        "message": "این باشگاه در پلن اشتراک کاربر نیست.",
+                        "valid": False,
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        if not has_gym_access(request.user, target_gym_id):
             return Response(
                 {"message": "شما به این باشگاه دسترسی ندارید.", "valid": False},
                 status=status.HTTP_403_FORBIDDEN,
@@ -136,6 +197,10 @@ class ValidateGymTokenView(views.APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        if token.gym_id is None:
+            GymToken.objects.filter(pk=token.pk).update(gym_id=target_gym_id)
+            token.gym_id = target_gym_id
 
         consumed = token.use()
         if not consumed:
