@@ -25,6 +25,9 @@ class GymToken(models.Model):
         on_delete=models.CASCADE,
         related_name="tokens",
         verbose_name="باشگاه",
+        null=True,
+        blank=True,
+        help_text="اگر خالی باشد، بلیت سراسری برای همه باشگاه‌های پلن است.",
     )
     token_code = models.UUIDField(
         default=uuid.uuid4,
@@ -58,7 +61,8 @@ class GymToken(models.Model):
         ordering = ["-issued_at"]
 
     def __str__(self):
-        return f"{self.subscription.user} - {self.gym.name} - {self.status}"
+        gym_label = self.gym.name if self.gym_id else "سراسری"
+        return f"{self.subscription.user} - {gym_label} - {self.status}"
 
     @property
     def is_valid(self):
@@ -80,6 +84,9 @@ class GymToken(models.Model):
                 locked.status == "active"
                 and locked.valid_until > timezone.now()
             ):
+                return False
+
+            if not locked.gym_id:
                 return False
 
             locked.status = "used"
