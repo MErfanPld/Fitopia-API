@@ -116,7 +116,7 @@ class UserDiscountProfileSerializer(serializers.ModelSerializer):
 class GymSerializer(serializers.ModelSerializer):
     class Meta:
         model = Gym
-        fields = ["id", "name", "address", "phone"]
+        fields = ["id", "name", "address", "phone", "gender", "is_open", "cover_image"]
 
 
 class SubscriptionGymsSerializer(serializers.Serializer):
