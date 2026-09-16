@@ -156,6 +156,24 @@ class Gym(models.Model):
         verbose_name="باشگاه محبوب"
     )
 
+    GENDER_CHOICES = [
+        ("women", "بانوان"),
+        ("men", "آقایان"),
+        ("both", "آقایان و بانوان"),
+    ]
+    gender = models.CharField(
+        max_length=10,
+        choices=GENDER_CHOICES,
+        default="both",
+        verbose_name="جنسیت باشگاه",
+        help_text="women | men | both",
+    )
+    is_open = models.BooleanField(
+        default=True,
+        verbose_name="باز است",
+        help_text="وضعیت فعلی باز/بسته بودن باشگاه",
+    )
+
     class Meta:
         verbose_name = "باشگاه"
         verbose_name_plural = "باشگاه‌ها"
@@ -323,6 +341,11 @@ class GymCoach(models.Model):
         max_length=100,
         verbose_name="تخصص"
     )
+    bio = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="بیوگرافی مربی",
+    )
 
     class Meta:
         verbose_name = "مربی"
@@ -366,4 +389,3 @@ class GymReview(models.Model):
 
     def __str__(self):
         return f"{self.gym.name} "
-    
