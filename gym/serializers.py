@@ -108,6 +108,8 @@ class GymDetailSerializer(serializers.ModelSerializer):
             "whatsapp",
             "is_popular",
             "popularity_score",
+            "gender",
+            "is_open",
             "average_rating",
             "google_map_url",
             "sports",
@@ -119,8 +121,8 @@ class GymDetailSerializer(serializers.ModelSerializer):
             "coaches",
             "reviews",
         )
-        
-        
+
+
 class SportAccessSerializer(serializers.Serializer):
     id = serializers.IntegerField()
     name = serializers.CharField()
@@ -134,4 +136,15 @@ class GymSummarySerializer(serializers.ModelSerializer):
 class CoachSerializer(serializers.ModelSerializer):
     class Meta:
         model = GymCoach
-        fields = ('id','full_name','image','specialty')
+        fields = ('id','full_name','image','specialty','bio')
+
+
+class GymReviewCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GymReview
+        fields = ("rating", "comment")
+
+    def validate_rating(self, value):
+        if value < 1 or value > 5:
+            raise serializers.ValidationError("امتیاز باید بین ۱ تا ۵ باشد.")
+        return value
