@@ -10,9 +10,8 @@ from .views import (
     GymDetailAPIView,
     GymSportsAccessView,
     SportCoachesView,
-    SportScheduleView,
-    GymReviewCreateView,
 )
+from .customer_extra_views import SportScheduleView, GymReviewCreateView
 
 
 urlpatterns = [
