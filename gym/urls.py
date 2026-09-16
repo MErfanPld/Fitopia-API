@@ -10,59 +10,37 @@ from .views import (
     GymDetailAPIView,
     GymSportsAccessView,
     SportCoachesView,
+    SportScheduleView,
+    GymReviewCreateView,
 )
 
 
 urlpatterns = [
-
-    path(
-        "categories/",
-        SportCategoryListView.as_view()
-    ),
-
-    path(
-        "sports/",
-        SportListView.as_view()
-    ),
-
-    path(
-        "",
-        GymListView.as_view()
-    ),
-
-    path(
-        "top/",
-        TopPopularGymsAPIView.as_view(),
-        name="top-gyms"
-    ),
-
-    path(
-        "nearby/",
-        NearbyGymsAPIView.as_view(),
-        name="nearby-gyms"
-    ),
-
-    path(
-        "prices/",
-        GymPriceListView.as_view()
-    ),
-
-    path(
-        "<int:pk>/",
-        GymDetailAPIView.as_view(),
-        name="gym-detail"
-    ),
-
+    path("categories/", SportCategoryListView.as_view()),
+    path("sports/", SportListView.as_view()),
+    path("", GymListView.as_view()),
+    path("top/", TopPopularGymsAPIView.as_view(), name="top-gyms"),
+    path("nearby/", NearbyGymsAPIView.as_view(), name="nearby-gyms"),
+    path("prices/", GymPriceListView.as_view()),
+    path("<int:pk>/", GymDetailAPIView.as_view(), name="gym-detail"),
     path(
         "<int:gym_id>/sports-access/",
         GymSportsAccessView.as_view(),
-        name="gym-sports-access"
+        name="gym-sports-access",
     ),
-
     path(
         "<int:gym_id>/sport/<int:sport_id>/coaches/",
         SportCoachesView.as_view(),
-        name="sport-coaches"
+        name="sport-coaches",
     ),
-
+    path(
+        "<int:gym_id>/sport/<int:sport_id>/schedule/",
+        SportScheduleView.as_view(),
+        name="sport-schedule",
+    ),
+    path(
+        "<int:gym_id>/reviews/",
+        GymReviewCreateView.as_view(),
+        name="gym-review-create",
+    ),
 ]
