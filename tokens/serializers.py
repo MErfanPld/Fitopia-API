@@ -5,10 +5,11 @@ from .models import GymToken
 
 class GymTokenSerializer(serializers.ModelSerializer):
     qr_code = serializers.SerializerMethodField()
-    gym_name = serializers.CharField(source="gym.name", read_only=True)
-    gym_address = serializers.CharField(source="gym.address", read_only=True)
+    gym_name = serializers.SerializerMethodField()
+    gym_address = serializers.SerializerMethodField()
     is_valid = serializers.BooleanField(read_only=True)
     user = serializers.CharField(source="subscription.user.__str__", read_only=True)
+    is_universal = serializers.SerializerMethodField()
 
     class Meta:
         model = GymToken
@@ -19,6 +20,7 @@ class GymTokenSerializer(serializers.ModelSerializer):
             "gym",
             "gym_name",
             "gym_address",
+            "is_universal",
             "status",
             "is_valid",
             "issued_at",
@@ -29,16 +31,30 @@ class GymTokenSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_qr_code(self, obj):
-        # فقط برای توکن‌های فعال QR تولید میشه
         if obj.status == "active":
             return obj.generate_qr_base64()
         return None
 
+    def get_gym_name(self, obj):
+        return obj.gym.name if obj.gym_id else None
+
+    def get_gym_address(self, obj):
+        return obj.gym.address if obj.gym_id else None
+
+    def get_is_universal(self, obj):
+        return obj.gym_id is None
+
 
 class RequestGymTokenSerializer(serializers.Serializer):
-    gym_id = serializers.IntegerField(help_text="آیدی باشگاه")
+    gym_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text="آیدی باشگاه؛ اگر ارسال نشود بلیت سراسری صادر می‌شود.",
+    )
 
     def validate_gym_id(self, value):
+        if value is None:
+            return value
         from gym.models import Gym
         if not Gym.objects.filter(id=value).exists():
             raise serializers.ValidationError("باشگاه مورد نظر یافت نشد.")
@@ -48,9 +64,8 @@ class RequestGymTokenSerializer(serializers.Serializer):
         from subscriptions.models import UserSubscription
 
         user = self.context["request"].user
-        gym_id = attrs["gym_id"]
+        gym_id = attrs.get("gym_id")
 
-        # بررسی اشتراک فعال
         subscription = UserSubscription.objects.filter(
             user=user,
             status="active",
@@ -63,22 +78,32 @@ class RequestGymTokenSerializer(serializers.Serializer):
         if subscription.tokens_remaining <= 0:
             raise serializers.ValidationError("توکن‌های اشتراک شما تمام شده است.")
 
-        # بررسی دسترسی به این باشگاه
-        if not subscription.plan.gyms.filter(id=gym_id).exists():
-            raise serializers.ValidationError("این باشگاه در پلن شما وجود ندارد.")
-
-        # بررسی توکن فعال برای همین باشگاه
-        existing = GymToken.objects.filter(
-            subscription=subscription,
-            gym_id=gym_id,
-            status="active",
-            valid_until__gt=timezone.now(),
-        ).exists()
-
-        if existing:
-            raise serializers.ValidationError(
-                "شما یک توکن فعال برای این باشگاه دارید. ابتدا آن را استفاده کنید."
-            )
+        if gym_id is not None:
+            if not subscription.plan.gyms.filter(id=gym_id).exists():
+                raise serializers.ValidationError("این باشگاه در پلن شما وجود ندارد.")
+            existing = GymToken.objects.filter(
+                subscription=subscription,
+                gym_id=gym_id,
+                status="active",
+                valid_until__gt=timezone.now(),
+            ).exists()
+            if existing:
+                raise serializers.ValidationError(
+                    "شما یک توکن فعال برای این باشگاه دارید. ابتدا آن را استفاده کنید."
+                )
+        else:
+            if not subscription.plan.gyms.exists():
+                raise serializers.ValidationError("پلن شما هیچ باشگاهی ندارد.")
+            existing = GymToken.objects.filter(
+                subscription=subscription,
+                gym__isnull=True,
+                status="active",
+                valid_until__gt=timezone.now(),
+            ).exists()
+            if existing:
+                raise serializers.ValidationError(
+                    "شما یک بلیت سراسری فعال دارید. ابتدا آن را استفاده کنید."
+                )
 
         attrs["subscription"] = subscription
         return attrs
@@ -86,3 +111,8 @@ class RequestGymTokenSerializer(serializers.Serializer):
 
 class ValidateGymTokenSerializer(serializers.Serializer):
     token_code = serializers.UUIDField(help_text="کد توکن")
+    gym_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        help_text="آیدی باشگاهی که اسکن در آن انجام می‌شود (برای بلیت سراسری الزامی است).",
+    )
