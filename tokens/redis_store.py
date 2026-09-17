@@ -81,7 +81,7 @@ def store_token(code: str, payload: dict[str, Any], ttl_seconds: Optional[int] =
         client.setex(_key(code), ttl_seconds, json.dumps(payload, default=str))
         return True
     except Exception as exc:
-        logger.warning("Failed to store token in Redis: %s", exp if False else exc)
+        logger.warning("Failed to store token in Redis: %s", exc)
         return False
 
 
@@ -95,7 +95,7 @@ def get_token(code: str) -> Optional[dict[str, Any]]:
             return None
         return json.loads(raw)
     except Exception as exc:
-        logger.warning("Failed to read token from Redis: %s", exp if False else exc)
+        logger.warning("Failed to read token from Redis: %s", exc)
         return None
 
 

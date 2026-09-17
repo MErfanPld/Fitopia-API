@@ -8,6 +8,7 @@ from users.models import User
 from gym.models import Gym
 from subscriptions.models import Plan, UserSubscription
 from tokens.models import GymToken
+from tokens.redis_store import next_midnight
 from gym_panel.models import GymStaffAccess
 
 
@@ -47,7 +48,7 @@ class TokenSystemTests(TestCase):
             end_date=timezone.now() + timedelta(days=30),
         )
 
-    def test_request_token(self):
+    def test_request_token_is_five_digits(self):
         self.client.force_authenticate(user=self.user)
         response = self.client.post(
             "/api/tokens/request/",
@@ -55,8 +56,18 @@ class TokenSystemTests(TestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        code = response.data["token_code"]
+        self.assertEqual(len(str(code)), 5)
+        self.assertTrue(str(code).isdigit())
         self.sub.refresh_from_db()
         self.assertEqual(self.sub.tokens_used, 1)
+        # اعتبار تا نیمه‌شب
+        token = GymToken.objects.get(token_code=code)
+        expected = next_midnight()
+        self.assertLessEqual(
+            abs((token.valid_until - expected).total_seconds()),
+            2,
+        )
 
     def test_request_token_without_subscription(self):
         other = User.objects.create_user(
@@ -72,10 +83,11 @@ class TokenSystemTests(TestCase):
 
     def test_validate_and_consume_token(self):
         token = GymToken.objects.create(subscription=self.sub, gym=self.gym)
+        self.assertEqual(len(token.token_code), 5)
         self.client.force_authenticate(user=self.staff)
         response = self.client.post(
             "/api/tokens/validate/",
-            {"token_code": str(token.token_code)},
+            {"token_code": token.token_code},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -88,12 +100,12 @@ class TokenSystemTests(TestCase):
         self.client.force_authenticate(user=self.staff)
         self.client.post(
             "/api/tokens/validate/",
-            {"token_code": str(token.token_code)},
+            {"token_code": token.token_code},
             format="json",
         )
         response = self.client.post(
             "/api/tokens/validate/",
-            {"token_code": str(token.token_code)},
+            {"token_code": token.token_code},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -118,7 +130,7 @@ class TokenSystemTests(TestCase):
         self.client.force_authenticate(user=other_staff)
         response = self.client.post(
             "/api/tokens/validate/",
-            {"token_code": str(token.token_code)},
+            {"token_code": token.token_code},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -131,7 +143,7 @@ class TokenSystemTests(TestCase):
         self.client.force_authenticate(user=self.staff)
         response = self.client.post(
             "/api/tokens/validate/",
-            {"token_code": str(token.token_code)},
+            {"token_code": token.token_code},
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

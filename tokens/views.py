@@ -32,7 +32,7 @@ class RequestGymTokenView(views.APIView):
             },
         ),
         responses={201: GymTokenSerializer},
-        summary="دریافت توکن باشگاه یا بلیت سراسری",
+        summary="دریافت توکن ۵رقمی باشگاه یا بلیت سراسری (تا نیمه‌شب)",
     )
     def post(self, request):
         serializer = RequestGymTokenSerializer(
@@ -105,14 +105,7 @@ class RequestGymTokenView(views.APIView):
             locked_sub.save(update_fields=["tokens_used"])
 
         return Response(
-            {
-                "message": (
-                    "بلیت سراسری صادر شد."
-                    if gym_id is None
-                    else "توکن با موفقیت صادر شد."
-                ),
-                "token": GymTokenSerializer(token).data,
-            },
+            GymTokenSerializer(token).data,
             status=status.HTTP_201_CREATED,
         )
 
@@ -124,7 +117,7 @@ class ValidateGymTokenView(views.APIView):
         request=inline_serializer(
             name="ValidateTokenInput",
             fields={
-                "token_code": drf_serializers.UUIDField(),
+                "token_code": drf_serializers.CharField(help_text="کد ۵رقمی"),
                 "gym_id": drf_serializers.IntegerField(
                     required=False,
                     allow_null=True,
@@ -133,7 +126,7 @@ class ValidateGymTokenView(views.APIView):
             },
         ),
         responses={200: GymTokenSerializer},
-        summary="اعتبارسنجی و مصرف توکن (توسط باشگاه)",
+        summary="اعتبارسنجی و مصرف توکن ۵رقمی (توسط باشگاه)",
     )
     def post(self, request):
         serializer = ValidateGymTokenSerializer(data=request.data)
