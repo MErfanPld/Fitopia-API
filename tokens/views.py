@@ -135,11 +135,15 @@ class ValidateGymTokenView(views.APIView):
         token_code = serializer.validated_data["token_code"]
         scan_gym_id = serializer.validated_data.get("gym_id")
 
-        try:
-            token = GymToken.objects.select_related(
+        token = (
+            GymToken.objects.select_related(
                 "subscription__user", "subscription__plan", "gym"
-            ).get(token_code=token_code)
-        except GymToken.DoesNotExist:
+            )
+            .filter(token_code=token_code, status="active")
+            .order_by("-issued_at")
+            .first()
+        )
+        if token is None:
             return Response(
                 {"message": "توکن یافت نشد.", "valid": False},
                 status=status.HTTP_404_NOT_FOUND,
