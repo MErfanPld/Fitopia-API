@@ -1,0 +1,71 @@
+from django.urls import path
+from . import coach_views as v
+
+urlpatterns = [
+    path("me/", v.CoachMeView.as_view(), name="coach-me"),
+    path(
+        "gyms/<int:gym_id>/students/",
+        v.CoachStudentListCreateView.as_view(),
+        name="coach-students",
+    ),
+    path(
+        "gyms/<int:gym_id>/students/<int:pk>/",
+        v.CoachStudentDetailView.as_view(),
+        name="coach-student-detail",
+    ),
+    path(
+        "gyms/<int:gym_id>/posts/",
+        v.CoachPostListCreateView.as_view(),
+        name="coach-posts",
+    ),
+    path(
+        "gyms/<int:gym_id>/posts/<int:pk>/",
+        v.CoachPostDetailView.as_view(),
+        name="coach-post-detail",
+    ),
+    path(
+        "gyms/<int:gym_id>/training/",
+        v.TrainingProgramListCreateView.as_view(),
+        name="coach-training",
+    ),
+    path(
+        "gyms/<int:gym_id>/training/<int:pk>/",
+        v.TrainingProgramDetailView.as_view(),
+        name="coach-training-detail",
+    ),
+    path(
+        "gyms/<int:gym_id>/diet/",
+        v.DietProgramListCreateView.as_view(),
+        name="coach-diet",
+    ),
+    path(
+        "gyms/<int:gym_id>/diet/<int:pk>/",
+        v.DietProgramDetailView.as_view(),
+        name="coach-diet-detail",
+    ),
+    path(
+        "gyms/<int:gym_id>/supplements/",
+        v.SupplementProgramListCreateView.as_view(),
+        name="coach-supplements",
+    ),
+    path(
+        "gyms/<int:gym_id>/supplements/<int:pk>/",
+        v.SupplementProgramDetailView.as_view(),
+        name="coach-supplement-detail",
+    ),
+    path(
+        "gyms/<int:gym_id>/stats/",
+        v.StudentStatListCreateView.as_view(),
+        name="coach-stats",
+    ),
+    path(
+        "gyms/<int:gym_id>/stats/<int:pk>/",
+        v.StudentStatDetailView.as_view(),
+        name="coach-stat-detail",
+    ),
+    path(
+        "gyms/<int:gym_id>/analytics/",
+        v.CoachMonthlyAnalyticsView.as_view(),
+        name="coach-analytics",
+    ),
+]
