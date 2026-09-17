@@ -1,5 +1,6 @@
-from rest_framework import serializers
 from django.utils import timezone
+from rest_framework import serializers
+
 from .models import GymToken
 
 
@@ -7,8 +8,6 @@ class GymTokenSerializer(serializers.ModelSerializer):
     qr_code = serializers.SerializerMethodField()
     gym_name = serializers.SerializerMethodField()
     gym_address = serializers.SerializerMethodField()
-    is_valid = serializers.BooleanField(read_only=True)
-    user = serializers.CharField(source="subscription.user.__str__", read_only=True)
     is_universal = serializers.SerializerMethodField()
 
     class Meta:
@@ -16,13 +15,11 @@ class GymTokenSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "token_code",
-            "user",
             "gym",
             "gym_name",
             "gym_address",
             "is_universal",
             "status",
-            "is_valid",
             "issued_at",
             "valid_until",
             "used_at",
@@ -56,6 +53,7 @@ class RequestGymTokenSerializer(serializers.Serializer):
         if value is None:
             return value
         from gym.models import Gym
+
         if not Gym.objects.filter(id=value).exists():
             raise serializers.ValidationError("باشگاه مورد نظر یافت نشد.")
         return value
@@ -110,9 +108,19 @@ class RequestGymTokenSerializer(serializers.Serializer):
 
 
 class ValidateGymTokenSerializer(serializers.Serializer):
-    token_code = serializers.UUIDField(help_text="کد توکن")
+    token_code = serializers.CharField(
+        min_length=5,
+        max_length=5,
+        help_text="کد ۵رقمی توکن",
+    )
     gym_id = serializers.IntegerField(
         required=False,
         allow_null=True,
         help_text="آیدی باشگاهی که اسکن در آن انجام می‌شود (برای بلیت سراسری الزامی است).",
     )
+
+    def validate_token_code(self, value):
+        value = str(value).strip()
+        if not value.isdigit() or len(value) != 5:
+            raise serializers.ValidationError("کد توکن باید دقیقاً ۵ رقم باشد.")
+        return value

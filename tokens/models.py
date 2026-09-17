@@ -1,10 +1,25 @@
-import uuid
+import random
+import string
+
 from django.db import models, transaction
 from django.utils import timezone
 
+from .redis_store import delete_token, next_midnight, store_token
+
 
 def default_valid_until():
-    return timezone.now() + timezone.timedelta(hours=24)
+    """توکن‌ها تا نیمه‌شب همان روز معتبرند."""
+    return next_midnight()
+
+
+def generate_five_digit_code() -> str:
+    """کد ۵رقمی یکتا (۱۰۰۰۰ تا ۹۹۹۹۹ برای جلوگیری از صفر پیشرو)."""
+    for _ in range(50):
+        code = f"{random.randint(10000, 99999)}"
+        if not GymToken.objects.filter(token_code=code, status="active").exists():
+            return code
+    # fallback بسیار نادر
+    return f"{random.randint(10000, 99999)}"
 
 
 class GymToken(models.Model):
@@ -29,11 +44,12 @@ class GymToken(models.Model):
         blank=True,
         help_text="اگر خالی باشد، بلیت سراسری برای همه باشگاه‌های پلن است.",
     )
-    token_code = models.UUIDField(
-        default=uuid.uuid4,
+    token_code = models.CharField(
+        max_length=5,
         unique=True,
         editable=False,
         verbose_name="کد توکن",
+        help_text="کد ۵رقمی روزانه",
     )
     status = models.CharField(
         max_length=20,
@@ -48,6 +64,7 @@ class GymToken(models.Model):
     valid_until = models.DateTimeField(
         default=default_valid_until,
         verbose_name="اعتبار تا",
+        help_text="معمولاً نیمه‌شب همان روز",
     )
     used_at = models.DateTimeField(
         null=True,
@@ -62,11 +79,38 @@ class GymToken(models.Model):
 
     def __str__(self):
         gym_label = self.gym.name if self.gym_id else "سراسری"
-        return f"{self.subscription.user} - {gym_label} - {self.status}"
+        return f"{self.subscription.user} - {gym_label} - {self.token_code} - {self.status}"
 
     @property
     def is_valid(self):
         return self.status == "active" and self.valid_until > timezone.now()
+
+    def save(self, *args, **kwargs):
+        creating = self.pk is None
+        if not self.token_code:
+            self.token_code = generate_five_digit_code()
+        if not self.valid_until:
+            self.valid_until = next_midnight()
+        super().save(*args, **kwargs)
+        if creating and self.status == "active":
+            self.sync_to_redis()
+
+    def sync_to_redis(self):
+        """ثبت کد فعال در Redis با TTL تا نیمه‌شب."""
+        if self.status != "active":
+            return
+        ttl = max(int((self.valid_until - timezone.now()).total_seconds()), 1)
+        store_token(
+            self.token_code,
+            {
+                "token_id": self.pk,
+                "subscription_id": self.subscription_id,
+                "gym_id": self.gym_id,
+                "status": self.status,
+                "valid_until": self.valid_until.isoformat(),
+            },
+            ttl_seconds=ttl,
+        )
 
     def use(self):
         """Consume token safely under a row lock to prevent double-spend."""
@@ -95,6 +139,8 @@ class GymToken(models.Model):
 
             self.status = locked.status
             self.used_at = locked.used_at
+
+            delete_token(locked.token_code)
 
             from gym_panel.models import GymVisit, GymCustomer
 
@@ -128,6 +174,7 @@ class GymToken(models.Model):
         if self.status == "active":
             self.status = "expired"
             self.save(update_fields=["status"])
+            delete_token(self.token_code)
 
     def generate_qr_base64(self):
         import qrcode

@@ -86,7 +86,8 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "fa-ir"
-TIME_ZONE = "UTC"
+# نیمه‌شب انقضای توکن بر اساس این timezone محاسبه می‌شود
+TIME_ZONE = os.environ.get("DJANGO_TIME_ZONE", "Asia/Tehran")
 USE_I18N = True
 USE_TZ = True
 
@@ -122,6 +123,11 @@ SPECTACULAR_SETTINGS = {
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
 }
+
+# Redis — محل ذخیره کدهای ۵رقمی فعال تا نیمه‌شب
+REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
+# اگر Redis در دسترس نباشد و این True باشد، فقط روی DB کار می‌کند (برای تست)
+REDIS_OPTIONAL = os.environ.get("REDIS_OPTIONAL", "true").lower() in ("1", "true", "yes")
 
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
