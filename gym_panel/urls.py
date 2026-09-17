@@ -1,4 +1,4 @@
-from django.urls import path
+from django.urls import path, include
 from .views import (
     GymCoachListCreateView,
     GymCoachUpdateDeleteView,
@@ -37,7 +37,7 @@ urlpatterns = [
     path("gyms/<int:gym_id>/prices/<int:pk>/", GymPriceUpdateDeleteView.as_view(), name="gym-panel-price-detail"),
 ]
 
-from django.urls import include
 urlpatterns += [
     path("", include("gym_panel.management_urls")),
+    path("coach/", include("gym_panel.coach_urls")),
 ]
