@@ -1,7 +1,7 @@
 import random
-import string
 
 from django.db import models, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from .redis_store import delete_token, next_midnight, store_token
@@ -13,12 +13,11 @@ def default_valid_until():
 
 
 def generate_five_digit_code() -> str:
-    """کد ۵رقمی یکتا (۱۰۰۰۰ تا ۹۹۹۹۹ برای جلوگیری از صفر پیشرو)."""
-    for _ in range(50):
+    """کد ۵رقمی یکتا بین توکن‌های فعال (۱۰۰۰۰–۹۹۹۹۹)."""
+    for _ in range(80):
         code = f"{random.randint(10000, 99999)}"
         if not GymToken.objects.filter(token_code=code, status="active").exists():
             return code
-    # fallback بسیار نادر
     return f"{random.randint(10000, 99999)}"
 
 
@@ -46,10 +45,10 @@ class GymToken(models.Model):
     )
     token_code = models.CharField(
         max_length=5,
-        unique=True,
         editable=False,
+        db_index=True,
         verbose_name="کد توکن",
-        help_text="کد ۵رقمی روزانه",
+        help_text="کد ۵رقمی روزانه؛ بعد از نیمه‌شب قابل استفاده مجدد است",
     )
     status = models.CharField(
         max_length=20,
@@ -76,6 +75,13 @@ class GymToken(models.Model):
         verbose_name = "توکن باشگاه"
         verbose_name_plural = "توکن‌های باشگاه"
         ordering = ["-issued_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["token_code"],
+                condition=Q(status="active"),
+                name="unique_active_gym_token_code",
+            ),
+        ]
 
     def __str__(self):
         gym_label = self.gym.name if self.gym_id else "سراسری"
