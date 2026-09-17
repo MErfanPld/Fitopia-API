@@ -20,6 +20,12 @@ ALLOWED_HOSTS = [
     if h.strip()
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    o.strip()
+    for o in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if o.strip()
+]
+
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -43,6 +49,18 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+]
+
+# WhiteNoise is installed in Docker image; optional locally
+try:
+    import whitenoise  # noqa: F401
+
+    MIDDLEWARE.append("whitenoise.middleware.WhiteNoiseMiddleware")
+    _HAS_WHITENOISE = True
+except ImportError:
+    _HAS_WHITENOISE = False
+
+MIDDLEWARE += [
     "django.contrib.sessions.middleware.SessionMiddleware",
     "config.middleware.APICorsMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -71,10 +89,12 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
+# SQLite path: set SQLITE_PATH=/app/data/db.sqlite3 in Docker
+_sqlite_name = os.environ.get("SQLITE_PATH") or str(BASE_DIR / "db.sqlite3")
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": _sqlite_name,
     }
 }
 
@@ -86,13 +106,22 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 LANGUAGE_CODE = "fa-ir"
-# نیمه‌شب انقضای توکن بر اساس این timezone محاسبه می‌شود
 TIME_ZONE = os.environ.get("DJANGO_TIME_ZONE", "Asia/Tehran")
 USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+if _HAS_WHITENOISE:
+    STORAGES = {
+        "default": {
+            "BACKEND": "django.core.files.storage.FileSystemStorage",
+        },
+        "staticfiles": {
+            "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+        },
+    }
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -124,10 +153,12 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
-# Redis — محل ذخیره کدهای ۵رقمی فعال تا نیمه‌شب
 REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
-# اگر Redis در دسترس نباشد و این True باشد، فقط روی DB کار می‌کند (برای تست)
 REDIS_OPTIONAL = os.environ.get("REDIS_OPTIONAL", "true").lower() in ("1", "true", "yes")
+
+# Behind nginx
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 if not DEBUG:
     SECURE_BROWSER_XSS_FILTER = True
