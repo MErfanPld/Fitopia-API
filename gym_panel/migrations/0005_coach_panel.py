@@ -1,0 +1,166 @@
+import django.db.models.deletion
+from django.conf import settings
+from django.db import migrations, models
+import gym_panel.coach_models
+
+
+class Migration(migrations.Migration):
+
+    dependencies = [
+        ("gym_panel", "0004_gymcustomer_added_by_gymcustomer_price_paid_and_more"),
+        ("gym", "0010_gymcoach_user_is_active"),
+        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+    ]
+
+    operations = [
+        migrations.CreateModel(
+            name="CoachStudent",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("full_name", models.CharField(max_length=150, verbose_name="نام کامل")),
+                ("phone", models.CharField(blank=True, max_length=20, verbose_name="موبایل")),
+                ("gender", models.CharField(blank=True, max_length=10, verbose_name="جنسیت")),
+                ("birth_date", models.DateField(blank=True, null=True, verbose_name="تاریخ تولد")),
+                ("photo", models.ImageField(blank=True, null=True, upload_to=gym_panel.coach_models.upload_student_photo, verbose_name="عکس")),
+                ("notes", models.TextField(blank=True, verbose_name="یادداشت")),
+                ("is_active", models.BooleanField(default=True, verbose_name="فعال")),
+                ("joined_at", models.DateField(auto_now_add=True, verbose_name="تاریخ عضویت نزد مربی")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("coach", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="students", to="gym.gymcoach", verbose_name="مربی")),
+                ("fitopia_user", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="as_coach_student", to=settings.AUTH_USER_MODEL, verbose_name="کاربر فیتوپیا")),
+                ("gym", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="coach_students", to="gym.gym", verbose_name="باشگاه")),
+                ("gym_customer", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="coach_links", to="gym_panel.gymcustomer", verbose_name="مشتری باشگاه")),
+            ],
+            options={"verbose_name": "شاگرد مربی", "verbose_name_plural": "شاگردان مربی", "ordering": ["-created_at"]},
+        ),
+        migrations.CreateModel(
+            name="CoachPost",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("image", models.ImageField(upload_to=gym_panel.coach_models.upload_coach_post, verbose_name="تصویر")),
+                ("caption", models.TextField(blank=True, verbose_name="کپشن")),
+                ("post_type", models.CharField(choices=[("coach", "عکس مربی"), ("student", "عکس شاگرد"), ("general", "عمومی")], default="general", max_length=20, verbose_name="نوع")),
+                ("is_public", models.BooleanField(default=True, verbose_name="عمومی")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("coach", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="posts", to="gym.gymcoach", verbose_name="مربی")),
+                ("student", models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name="posts", to="gym_panel.coachstudent", verbose_name="شاگرد")),
+            ],
+            options={"verbose_name": "پست مربی", "verbose_name_plural": "پست‌های مربی", "ordering": ["-created_at"]},
+        ),
+        migrations.CreateModel(
+            name="TrainingProgram",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("title", models.CharField(max_length=200, verbose_name="عنوان")),
+                ("description", models.TextField(blank=True, verbose_name="توضیحات")),
+                ("year", models.PositiveIntegerField(verbose_name="سال")),
+                ("month", models.PositiveIntegerField(verbose_name="ماه")),
+                ("status", models.CharField(choices=[("draft", "پیش‌نویس"), ("active", "فعال"), ("completed", "تمام‌شده")], default="active", max_length=20)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("coach", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="training_programs", to="gym.gymcoach")),
+                ("student", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="training_programs", to="gym_panel.coachstudent")),
+            ],
+            options={"ordering": ["-year", "-month", "-created_at"]},
+        ),
+        migrations.CreateModel(
+            name="TrainingExercise",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("day_of_week", models.PositiveSmallIntegerField(default=0, help_text="0=شنبه ... 6=جمعه", verbose_name="روز هفته")),
+                ("exercise_name", models.CharField(max_length=200, verbose_name="حرکت")),
+                ("sets", models.PositiveIntegerField(default=3, verbose_name="ست")),
+                ("reps", models.CharField(default="10", max_length=50, verbose_name="تکرار")),
+                ("rest_seconds", models.PositiveIntegerField(default=60, verbose_name="استراحت (ثانیه)")),
+                ("notes", models.TextField(blank=True, verbose_name="یادداشت")),
+                ("order", models.PositiveIntegerField(default=0, verbose_name="ترتیب")),
+                ("program", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="exercises", to="gym_panel.trainingprogram")),
+            ],
+            options={"ordering": ["day_of_week", "order", "id"]},
+        ),
+        migrations.CreateModel(
+            name="DietProgram",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("title", models.CharField(max_length=200, verbose_name="عنوان")),
+                ("description", models.TextField(blank=True)),
+                ("year", models.PositiveIntegerField()),
+                ("month", models.PositiveIntegerField()),
+                ("daily_calories", models.PositiveIntegerField(blank=True, null=True, verbose_name="کالری روزانه")),
+                ("status", models.CharField(choices=[("draft", "پیش‌نویس"), ("active", "فعال"), ("completed", "تمام‌شده")], default="active", max_length=20)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("coach", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="diet_programs", to="gym.gymcoach")),
+                ("student", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="diet_programs", to="gym_panel.coachstudent")),
+            ],
+            options={"ordering": ["-year", "-month", "-created_at"]},
+        ),
+        migrations.CreateModel(
+            name="DietMeal",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("meal_type", models.CharField(choices=[("breakfast", "صبحانه"), ("snack1", "میان‌وعده ۱"), ("lunch", "ناهار"), ("snack2", "میان‌وعده ۲"), ("dinner", "شام"), ("snack3", "میان‌وعده ۳")], max_length=20, verbose_name="وعده")),
+                ("items", models.TextField(verbose_name="اقلام")),
+                ("calories", models.PositiveIntegerField(blank=True, null=True, verbose_name="کالری")),
+                ("order", models.PositiveIntegerField(default=0)),
+                ("program", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="meals", to="gym_panel.dietprogram")),
+            ],
+            options={"ordering": ["order", "id"]},
+        ),
+        migrations.CreateModel(
+            name="SupplementProgram",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("title", models.CharField(max_length=200, verbose_name="عنوان")),
+                ("description", models.TextField(blank=True)),
+                ("year", models.PositiveIntegerField()),
+                ("month", models.PositiveIntegerField()),
+                ("status", models.CharField(choices=[("draft", "پیش‌نویس"), ("active", "فعال"), ("completed", "تمام‌شده")], default="active", max_length=20)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("coach", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="supplement_programs", to="gym.gymcoach")),
+                ("student", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="supplement_programs", to="gym_panel.coachstudent")),
+            ],
+            options={"ordering": ["-year", "-month", "-created_at"]},
+        ),
+        migrations.CreateModel(
+            name="SupplementItem",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("name", models.CharField(max_length=150, verbose_name="نام مکمل")),
+                ("dosage", models.CharField(blank=True, max_length=100, verbose_name="دوز")),
+                ("timing", models.CharField(blank=True, max_length=100, verbose_name="زمان مصرف")),
+                ("notes", models.TextField(blank=True)),
+                ("order", models.PositiveIntegerField(default=0)),
+                ("program", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="items", to="gym_panel.supplementprogram")),
+            ],
+            options={"ordering": ["order", "id"]},
+        ),
+        migrations.CreateModel(
+            name="StudentMonthlyStat",
+            fields=[
+                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("year", models.PositiveIntegerField()),
+                ("month", models.PositiveIntegerField()),
+                ("weight_kg", models.DecimalField(blank=True, decimal_places=2, max_digits=6, null=True, verbose_name="وزن (کیلو)")),
+                ("body_fat_percent", models.DecimalField(blank=True, decimal_places=2, max_digits=5, null=True, verbose_name="چربی بدن %")),
+                ("muscle_mass_kg", models.DecimalField(blank=True, decimal_places=2, max_digits=6, null=True, verbose_name="عضله (کیلو)")),
+                ("workouts_completed", models.PositiveIntegerField(default=0, verbose_name="تمرین انجام‌شده")),
+                ("adherence_percent", models.PositiveIntegerField(blank=True, null=True, verbose_name="درصد پایبندی")),
+                ("notes", models.TextField(blank=True, verbose_name="تحلیل مربی")),
+                ("measurements", models.JSONField(blank=True, default=dict, verbose_name="اندازه‌گیری‌ها")),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("coach", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="student_stats", to="gym.gymcoach")),
+                ("student", models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name="monthly_stats", to="gym_panel.coachstudent")),
+            ],
+            options={
+                "verbose_name": "آمار ماهانه شاگرد",
+                "verbose_name_plural": "آمار ماهانه شاگردان",
+                "ordering": ["-year", "-month"],
+                "unique_together": {("student", "year", "month")},
+            },
+        ),
+    ]
