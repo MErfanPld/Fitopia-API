@@ -201,9 +201,7 @@ class GymTicketMessage(models.Model):
 
     def __str__(self):
         return f"#{self.ticket_id} - {self.get_sender_role_display()} - {self.created_at:%Y-%m-%d %H:%M}"
-    
-    
-    
+
 
 class GymCustomer(models.Model):
     SOURCE_CHOICES = [
@@ -307,4 +305,17 @@ from .expansion_models import (  # noqa: E402,F401
     CustomerPayment,
     Refund,
     AuditLog,
+)
+
+# Coach panel domain
+from .coach_models import (  # noqa: E402,F401
+    CoachStudent,
+    CoachPost,
+    TrainingProgram,
+    TrainingExercise,
+    DietProgram,
+    DietMeal,
+    SupplementProgram,
+    SupplementItem,
+    StudentMonthlyStat,
 )
