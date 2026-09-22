@@ -1,7 +1,4 @@
-"""
-ادمین عملیات باشگاه: حضور، دوره، مالی، مجوز، لاگ.
-این بخش هستهٔ پنل مدیریت باشگاه‌هاست.
-"""
+"""ادمین عملیات باشگاه: حضور، دوره، مالی، مجوز، لاگ."""
 from django.contrib import admin
 from django.utils.html import format_html
 
@@ -76,7 +73,15 @@ class CourseEnrollmentAdmin(admin.ModelAdmin):
 
 @admin.register(SingleSessionPurchase)
 class SingleSessionPurchaseAdmin(admin.ModelAdmin):
-    list_display = ("customer", "gym", "sport", "price_paid", "purchased_at", "used_at", "expires_at")
+    list_display = (
+        "customer",
+        "gym",
+        "sport",
+        "price_paid",
+        "purchased_at",
+        "used_at",
+        "expires_at",
+    )
     list_filter = ("gym", "purchased_at")
     search_fields = ("customer__full_name", "customer__phone")
     autocomplete_fields = ("gym", "sport", "customer", "transaction")
@@ -124,16 +129,14 @@ class GymVisitAdmin(admin.ModelAdmin):
         return "—"
 
 
-class StaffPermissionInline(admin.TabularInline):
-    model = StaffPermission
-    extra = 0
-
-
 @admin.register(StaffPermission)
 class StaffPermissionAdmin(admin.ModelAdmin):
     list_display = ("staff_access", "code")
     list_filter = ("code",)
-    search_fields = ("staff_access__user__username", "staff_access__user__phone_number")
+    search_fields = (
+        "staff_access__user__username",
+        "staff_access__user__phone_number",
+    )
     autocomplete_fields = ("staff_access",)
 
 
@@ -151,7 +154,12 @@ class FinanceTransactionAdmin(admin.ModelAdmin):
         "customer",
     )
     list_filter = ("type", "category", "status", "payment_method", "gym", "date")
-    search_fields = ("description", "reference", "customer__full_name", "gym__name")
+    search_fields = (
+        "description",
+        "reference_number",
+        "customer__full_name",
+        "gym__name",
+    )
     autocomplete_fields = ("gym", "customer", "created_by")
     date_hierarchy = "date"
     readonly_fields = ("created_at",)
@@ -160,7 +168,9 @@ class FinanceTransactionAdmin(admin.ModelAdmin):
     def type_badge(self, obj):
         color = "#0a7" if obj.type == "income" else "#c33"
         label = obj.get_type_display() if hasattr(obj, "get_type_display") else obj.type
-        return format_html('<span style="color:{};font-weight:bold">{}</span>', color, label)
+        return format_html(
+            '<span style="color:{};font-weight:bold">{}</span>', color, label
+        )
 
     @admin.display(description="مبلغ (تومان)")
     def amount_display(self, obj):
@@ -169,30 +179,75 @@ class FinanceTransactionAdmin(admin.ModelAdmin):
 
 @admin.register(CustomerPayment)
 class CustomerPaymentAdmin(admin.ModelAdmin):
-    list_display = ("customer", "gym", "amount", "method", "paid_at", "transaction")
-    list_filter = ("method", "gym", "paid_at")
-    search_fields = ("customer__full_name", "customer__phone")
-    autocomplete_fields = ("customer", "gym", "transaction")
-    date_hierarchy = "paid_at"
+    list_display = (
+        "customer",
+        "gym",
+        "total_price",
+        "amount_paid",
+        "discount",
+        "payment_method",
+        "created_at",
+    )
+    list_filter = ("payment_method", "gym", "created_at")
+    search_fields = ("customer__full_name", "customer__phone", "reference_number")
+    autocomplete_fields = (
+        "customer",
+        "gym",
+        "related_course",
+        "related_transaction",
+        "created_by",
+    )
+    date_hierarchy = "created_at"
 
 
 @admin.register(Refund)
 class RefundAdmin(admin.ModelAdmin):
-    list_display = ("id", "transaction", "amount", "reason", "status", "created_at")
-    list_filter = ("status", "created_at")
+    list_display = (
+        "id",
+        "gym",
+        "original_transaction",
+        "amount",
+        "status",
+        "operator",
+        "created_at",
+        "completed_at",
+    )
+    list_filter = ("status", "gym", "created_at")
     search_fields = ("reason",)
-    autocomplete_fields = ("transaction", "approved_by")
+    autocomplete_fields = ("gym", "original_transaction", "operator")
     readonly_fields = ("created_at",)
 
 
 @admin.register(AuditLog)
 class AuditLogAdmin(admin.ModelAdmin):
-    list_display = ("id", "gym", "user", "action", "object_type", "object_id", "created_at")
+    list_display = (
+        "id",
+        "gym",
+        "user",
+        "action",
+        "object_type",
+        "object_id",
+        "created_at",
+    )
     list_filter = ("action", "gym", "created_at")
-    search_fields = ("action", "object_type", "object_id", "user__username", "user__phone_number")
+    search_fields = (
+        "action",
+        "object_type",
+        "object_id",
+        "user__username",
+        "user__phone_number",
+    )
     autocomplete_fields = ("gym", "user")
     date_hierarchy = "created_at"
-    readonly_fields = ("gym", "user", "action", "object_type", "object_id", "metadata", "created_at")
+    readonly_fields = (
+        "gym",
+        "user",
+        "action",
+        "object_type",
+        "object_id",
+        "metadata",
+        "created_at",
+    )
 
     def has_add_permission(self, request):
         return False

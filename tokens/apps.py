@@ -2,5 +2,6 @@ from django.apps import AppConfig
 
 
 class TokensConfig(AppConfig):
-    name = 'tokens'
-    verbose_name = "توکن باشگاه ها"
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "tokens"
+    verbose_name = "توکن ورود باشگاه"

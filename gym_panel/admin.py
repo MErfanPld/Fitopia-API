@@ -2,23 +2,42 @@ from django.contrib import admin
 from django.utils import timezone
 
 from .models import GymCustomer, GymStaffAccess, GymChangeRequest, GymTicketMessage
+from .expansion_models import StaffPermission
 from gym.models import Sport
+
+
+class StaffPermissionInline(admin.TabularInline):
+    model = StaffPermission
+    extra = 0
 
 
 @admin.register(GymCustomer)
 class GymCustomerAdmin(admin.ModelAdmin):
-    list_display = ("full_name", "phone", "gym", "sport", "source", "sessions_remaining", "join_date")
-    list_filter = ("source", "gym", "sport")
+    list_display = (
+        "full_name",
+        "phone",
+        "gym",
+        "sport",
+        "source",
+        "sessions_remaining",
+        "membership_status",
+        "is_active",
+        "join_date",
+    )
+    list_filter = ("source", "gym", "sport", "is_active", "membership_status")
     search_fields = ("full_name", "phone")
-    autocomplete_fields = ("gym", "sport")
+    autocomplete_fields = ("gym", "sport", "coach", "fitopia_user", "added_by")
+    date_hierarchy = "join_date"
+    readonly_fields = ("created_at", "updated_at", "last_visit_at")
 
 
 @admin.register(GymStaffAccess)
 class GymStaffAccessAdmin(admin.ModelAdmin):
-    list_display = ("user", "gym", "role", "is_active", "created_at")
-    list_filter = ("role", "is_active")
-    search_fields = ("user__username", "user__phone_number")
+    list_display = ("user", "gym", "role", "is_active", "employee_number", "created_at")
+    list_filter = ("role", "is_active", "gym")
+    search_fields = ("user__username", "user__phone_number", "user__full_name", "employee_number")
     autocomplete_fields = ("user", "gym")
+    inlines = [StaffPermissionInline]
 
 
 class GymTicketMessageInline(admin.TabularInline):
@@ -37,6 +56,7 @@ class GymTicketMessageInline(admin.TabularInline):
 class GymChangeRequestAdmin(admin.ModelAdmin):
     list_display = ("id", "gym", "request_type", "status", "requested_by", "created_at")
     list_filter = ("request_type", "status")
+    search_fields = ("gym__name",)
     readonly_fields = ("gym", "requested_by", "request_type", "payload", "created_at")
     inlines = [GymTicketMessageInline]
     actions = ["approve_requests", "reject_requests"]
@@ -82,7 +102,7 @@ class GymChangeRequestAdmin(admin.ModelAdmin):
             count += 1
         self.message_user(request, f"{count} تیکت رد شد.")
 
-    reject_requests.short_description = "رد درخواست‌های انتخاب‌شده (دلیل از admin_note خوانده می‌شود)"
+    reject_requests.short_description = "رد درخواست‌های انتخاب‌شده"
 
     def save_model(self, request, obj, form, change):
         if change:
@@ -98,5 +118,5 @@ class GymChangeRequestAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
-# مدل‌های دامنه پنل مربی
 from . import admin_coach  # noqa: E402,F401
+from . import admin_management  # noqa: E402,F401

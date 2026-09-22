@@ -38,14 +38,14 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "rest_framework_simplejwt.token_blacklist",
     "accounts",
-    "users",
-    "acl",
-    "gym",
-    "core",
-    "tokens",
-    "subscriptions",
-    "gym_panel",
-    "coach_panel",
+    "users.apps.UsersConfig",
+    "acl.apps.AclConfig",
+    "gym.apps.GymConfig",
+    "core.apps.CoreConfig",
+    "tokens.apps.TokensConfig",
+    "subscriptions.apps.SubscriptionsConfig",
+    "gym_panel.apps.GymPanelConfig",
+    "coach_panel.apps.CoachPanelConfig",
 ]
 
 MIDDLEWARE = [
@@ -75,7 +75,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

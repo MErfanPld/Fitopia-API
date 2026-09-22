@@ -2,5 +2,6 @@ from django.apps import AppConfig
 
 
 class SubscriptionsConfig(AppConfig):
-    name = 'subscriptions'
-    verbose_name = "ماژول اشتراک ها"
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "subscriptions"
+    verbose_name = "اشتراک‌ها و پلن‌ها"
