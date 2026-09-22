@@ -1,29 +1,34 @@
+from django.http import HttpResponse
 from django.utils import translation
 
 
 class APICorsMiddleware:
-    """CORS ساده برای API — اگر قبلاً وجود داشته حفظ می‌شود."""
-
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
+        # OPTIONS را بدون authentication جواب بده
+        if request.method == "OPTIONS":
+            response = HttpResponse()
+            response["Access-Control-Allow-Origin"] = "*"
+            response["Access-Control-Allow-Methods"] = (
+                "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            )
+            response["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+            response["Access-Control-Max-Age"] = "86400"
+            return response
+
         response = self.get_response(request)
         response["Access-Control-Allow-Origin"] = "*"
-        response["Access-Control-Allow-Headers"] = (
-            "Authorization, Content-Type, Accept, Origin, X-Requested-With"
+        response["Access-Control-Allow-Methods"] = (
+            "GET, POST, PUT, PATCH, DELETE, OPTIONS"
         )
-        response["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-        if request.method == "OPTIONS":
-            response.status_code = 200
+        response["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
         return response
 
 
 class ForcePersianMiddleware:
-    """
-    کل پروژه (به‌خصوص ادمین) همیشه فارسی باشد.
-    مرورگر انگلیسی نباید زبان UI را عوض کند.
-    """
+    """کل UI (ادمین) همیشه فارسی — وابسته به زبان مرورگر نباشد."""
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -32,6 +37,5 @@ class ForcePersianMiddleware:
         translation.activate("fa")
         request.LANGUAGE_CODE = "fa"
         response = self.get_response(request)
-        response.setdefault("Content-Language", "fa")
-        translation.deactivate()
+        response["Content-Language"] = "fa"
         return response
