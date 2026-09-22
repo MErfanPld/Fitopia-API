@@ -77,12 +77,13 @@ class SingleSessionPurchaseAdmin(admin.ModelAdmin):
         "customer",
         "gym",
         "sport",
-        "price_paid",
+        "price",
+        "status",
         "purchased_at",
         "used_at",
         "expires_at",
     )
-    list_filter = ("gym", "purchased_at")
+    list_filter = ("status", "gym", "purchased_at")
     search_fields = ("customer__full_name", "customer__phone")
     autocomplete_fields = ("gym", "sport", "customer", "transaction")
     date_hierarchy = "purchased_at"
