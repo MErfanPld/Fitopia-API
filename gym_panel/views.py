@@ -6,7 +6,8 @@ from rest_framework.permissions import AllowAny
 from rest_framework.exceptions import PermissionDenied
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from django.db import models  
+from django.db import models
+from django.db.models import Q
 
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema
@@ -25,7 +26,7 @@ from .serializers import (
     GymPriceSerializer,
 )
 from .models import GymStaffAccess, GymChangeRequest
-from .permissions import IsGymStaff, has_gym_access
+from .permissions import IsGymStaff, has_gym_access, user_has_perm, get_staff_access
 
 
 def get_tokens(user):
@@ -42,6 +43,18 @@ def _get_gym_or_403(user, gym_id):
     return get_object_or_404(Gym, id=gym_id)
 
 
+def _require_owner_or_employee_manage(user, gym_id):
+    """فقط مالک یا کسی با مجوز employee.manage می‌تواند مربی بسازد."""
+    access = get_staff_access(user, gym_id)
+    if not access:
+        raise PermissionDenied("شما به این باشگاه دسترسی ندارید.")
+    if access.role == "owner":
+        return
+    if user_has_perm(user, gym_id, "employee.manage"):
+        return
+    raise PermissionDenied("فقط مالک باشگاه می‌تواند مربی تعریف کند.")
+
+
 # =========================
 # AUTH
 # =========================
@@ -53,25 +66,22 @@ class GymPanelLoginView(GenericAPIView):
     @extend_schema(
         request=GymPanelLoginSerializer,
         responses={200: GymStaffAccessSerializer(many=True)},
-        summary="لاگین پنل باشگاه‌دار",
+        summary="لاگین پنل باشگاه‌دار / مربی",
         tags=["gym-panel"],
     )
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        username = serializer.validated_data["username"]
+        login_id = serializer.validated_data["username"]
         password = serializer.validated_data["password"]
 
-        try:
-            user = User.objects.get(username=username, is_staff_user=True)
-        except User.DoesNotExist:
-            return Response(
-                {"error": "نام کاربری یا رمز اشتباه است"},
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+        user = User.objects.filter(
+            Q(username=login_id) | Q(phone_number=login_id),
+            is_staff_user=True,
+        ).first()
 
-        if not user.check_password(password):
+        if not user or not user.check_password(password):
             return Response(
                 {"error": "نام کاربری یا رمز اشتباه است"},
                 status=status.HTTP_401_UNAUTHORIZED,
@@ -83,7 +93,9 @@ class GymPanelLoginView(GenericAPIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        accesses = GymStaffAccess.objects.filter(user=user).select_related("gym")
+        accesses = GymStaffAccess.objects.filter(
+            user=user, is_active=True
+        ).select_related("gym")
 
         return Response({
             "tokens": get_tokens(user),
@@ -99,7 +111,7 @@ class MyGymsView(generics.ListAPIView):
 
     def get_queryset(self):
         return GymStaffAccess.objects.filter(
-            user=self.request.user
+            user=self.request.user, is_active=True
         ).select_related("gym")
 
 
@@ -125,7 +137,7 @@ class GymPanelUpdateView(GenericAPIView):
 
 
 # =========================
-# تیکت برای فیلدهای محدود (name/address/lat/long)
+# تیکت برای فیلدهای محدود
 # =========================
 class GymFieldEditRequestView(GenericAPIView):
     serializer_class = FieldEditRequestSerializer
@@ -157,9 +169,6 @@ class GymFieldEditRequestView(GenericAPIView):
         )
 
 
-# =========================
-# پیشنهاد رشته‌ی ورزشی جدید
-# =========================
 class SuggestNewSportView(GenericAPIView):
     serializer_class = SuggestNewSportSerializer
     permission_classes = [IsGymStaff]
@@ -190,9 +199,6 @@ class SuggestNewSportView(GenericAPIView):
         )
 
 
-# =========================
-# لیست تیکت‌های خودم
-# =========================
 @extend_schema(tags=["gym-panel"])
 class MyChangeRequestsView(generics.ListAPIView):
     serializer_class = GymChangeRequestSerializer
@@ -204,9 +210,6 @@ class MyChangeRequestsView(generics.ListAPIView):
         return GymChangeRequest.objects.filter(gym_id=gym_id)
 
 
-# =========================
-# مدیریت رشته‌های موجود باشگاه (GymPrice)
-# =========================
 @extend_schema(tags=["gym-panel"])
 class GymPriceListCreateView(generics.ListCreateAPIView):
     serializer_class = GymPriceSerializer
@@ -254,17 +257,26 @@ from .serializers import GymCoachSerializer
 
 @extend_schema(tags=["gym-panel"])
 class GymCoachListCreateView(generics.ListCreateAPIView):
+    """
+    لیست/ساخت مربی.
+    برای ساخت حساب لاگین: username + password + phone_number بفرستید.
+    """
     serializer_class = GymCoachSerializer
     permission_classes = [IsGymStaff]
 
     def get_queryset(self):
         gym_id = self.kwargs["gym_id"]
         _get_gym_or_403(self.request.user, gym_id)
-        return GymCoach.objects.filter(gym_id=gym_id).prefetch_related("sports")
+        return (
+            GymCoach.objects.filter(gym_id=gym_id)
+            .select_related("user")
+            .prefetch_related("sports")
+        )
 
     def perform_create(self, serializer):
         gym_id = self.kwargs["gym_id"]
         gym = _get_gym_or_403(self.request.user, gym_id)
+        _require_owner_or_employee_manage(self.request.user, gym_id)
         serializer.save(gym=gym)
 
 
@@ -276,7 +288,16 @@ class GymCoachUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
     def get_queryset(self):
         gym_id = self.kwargs["gym_id"]
         _get_gym_or_403(self.request.user, gym_id)
-        return GymCoach.objects.filter(gym_id=gym_id)
+        return GymCoach.objects.filter(gym_id=gym_id).select_related("user")
+
+    def perform_update(self, serializer):
+        _require_owner_or_employee_manage(self.request.user, self.kwargs["gym_id"])
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        _require_owner_or_employee_manage(self.request.user, self.kwargs["gym_id"])
+        # حساب کاربری را حذف نمی‌کنیم؛ فقط پروفایل مربی
+        instance.delete()
 
 
 from .serializers import GymTicketMessageCreateSerializer, GymTicketMessageSerializer
@@ -285,7 +306,6 @@ from .models import GymTicketMessage
 
 @extend_schema(tags=["gym-panel"])
 class TicketDetailView(generics.RetrieveAPIView):
-    """جزئیات کامل یک تیکت + کل تاریخچه پیام‌ها"""
     serializer_class = GymChangeRequestSerializer
     permission_classes = [IsGymStaff]
 
@@ -296,7 +316,6 @@ class TicketDetailView(generics.RetrieveAPIView):
 
 
 class TicketMessageCreateView(GenericAPIView):
-    """باشگاه‌دار روی تیکتش پیام/پاسخ می‌فرسته"""
     serializer_class = GymTicketMessageCreateSerializer
     permission_classes = [IsGymStaff]
 
