@@ -1,0 +1,17 @@
+{% extends "admin/base.html" %}
+{% load static %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | پنل مدیریت فیتوپیا{% endblock %}
+
+{% block branding %}
+<h1 id="site-name">
+  <a href="{% url 'admin:index' %}">🏋️ پنل مدیریت فیتوپیا</a>
+</h1>
+{% if user.is_authenticated %}
+<p style="margin:0;padding:0 15px 8px;color:#ffc;font-size:12px;">
+  مدیریت باشگاه‌ها · مربیان · اعضا · مالی · توکن و اشتراک
+</p>
+{% endif %}
+{% endblock %}
+
+{% block nav-global %}{% endblock %}
