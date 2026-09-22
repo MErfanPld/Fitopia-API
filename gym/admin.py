@@ -14,6 +14,7 @@ class SportAdmin(admin.ModelAdmin):
     list_filter = ("category",)
     search_fields = ("name",)
 
+
 class GymPriceInline(admin.TabularInline):
     model = GymPrice
     extra = 1
@@ -37,6 +38,7 @@ class GymBannerInline(admin.TabularInline):
 class GymCoachInline(admin.TabularInline):
     model = GymCoach
     extra = 1
+    fields = ("full_name", "user", "specialty", "is_active", "image")
 
 
 class GymReviewInline(admin.TabularInline):
@@ -50,12 +52,14 @@ class GymAdmin(admin.ModelAdmin):
         "name",
         "phone",
         "is_popular",
-        "popularity_score"
+        "popularity_score",
     )
+    search_fields = ("name", "phone", "address")
+    list_filter = ("is_popular",)
 
     filter_horizontal = (
         "sports",
-        "facilities"
+        "facilities",
     )
 
     inlines = [
@@ -69,3 +73,6 @@ class GymAdmin(admin.ModelAdmin):
 
 
 admin.site.register(GymFacility)
+
+# مربی‌ها به‌صورت مستقل (لینک user / is_active)
+from . import admin_coach  # noqa: E402,F401
