@@ -45,13 +45,13 @@ INSTALLED_APPS = [
     "tokens",
     "subscriptions",
     "gym_panel",
+    "coach_panel",
 ]
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
 ]
 
-# WhiteNoise is installed in Docker image; optional locally
 try:
     import whitenoise  # noqa: F401
 
@@ -89,7 +89,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "config.wsgi.application"
 
-# SQLite path: set SQLITE_PATH=/app/data/db.sqlite3 in Docker
 _sqlite_name = os.environ.get("SQLITE_PATH") or str(BASE_DIR / "db.sqlite3")
 DATABASES = {
     "default": {
@@ -156,7 +155,6 @@ SPECTACULAR_SETTINGS = {
 REDIS_URL = os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")
 REDIS_OPTIONAL = os.environ.get("REDIS_OPTIONAL", "true").lower() in ("1", "true", "yes")
 
-# Behind nginx
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
