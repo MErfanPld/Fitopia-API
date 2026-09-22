@@ -62,6 +62,7 @@ except ImportError:
 
 MIDDLEWARE += [
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "django.middleware.locale.LocaleMiddleware",
     "config.middleware.APICorsMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -104,13 +105,19 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
-LANGUAGE_CODE = "fa-ir"
+# فارسی کامل برای پنل ادمین (ترجمه‌های داخلی جنگو)
+LANGUAGE_CODE = "fa"
+LANGUAGES = [
+    ("fa", "فارسی"),
+    ("en", "English"),
+]
 TIME_ZONE = os.environ.get("DJANGO_TIME_ZONE", "Asia/Tehran")
 USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 if _HAS_WHITENOISE:
     STORAGES = {
@@ -118,6 +125,7 @@ if _HAS_WHITENOISE:
             "BACKEND": "django.core.files.storage.FileSystemStorage",
         },
         "staticfiles": {
+            # بدون Manifest تا CSS سفارشی ادمین بدون مشکل لود شود
             "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
         },
     }
