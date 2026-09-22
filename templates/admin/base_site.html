@@ -3,15 +3,21 @@
 
 {% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | پنل مدیریت فیتوپیا{% endblock %}
 
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'admin/css/fitopia_admin.css' %}">
+  <style>
+    html { direction: rtl; }
+  </style>
+{% endblock %}
+
 {% block branding %}
-<h1 id="site-name">
-  <a href="{% url 'admin:index' %}">🏋️ پنل مدیریت فیتوپیا</a>
-</h1>
-{% if user.is_authenticated %}
-<p style="margin:0;padding:0 15px 8px;color:#ffc;font-size:12px;">
-  مدیریت باشگاه‌ها · مربیان · اعضا · مالی · توکن و اشتراک
-</p>
-{% endif %}
+<div id="site-name">
+  <h1>
+    <a href="{% url 'admin:index' %}">پنل مدیریت فیتوپیا</a>
+  </h1>
+  <p class="fitopia-subtitle">مدیریت باشگاه‌ها · مربیان · اعضا · مالی · توکن و اشتراک</p>
+</div>
 {% endblock %}
 
 {% block nav-global %}{% endblock %}

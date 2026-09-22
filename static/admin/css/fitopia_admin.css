@@ -1,0 +1,306 @@
+/* پنل مدیریت فیتوپیا — RTL + UI */
+@import url("https://cdn.jsdelivr.net/npm/vazirmatn@33.0.3/Vazirmatn-font-face.css");
+
+:root {
+  --fp-primary: #0d9488;
+  --fp-primary-dark: #0f766e;
+  --fp-bg: #f0fdfa;
+  --fp-header: #134e4a;
+  --fp-accent: #14b8a6;
+  --fp-text: #134e4a;
+  --fp-muted: #5eead4;
+  --fp-border: #99f6e4;
+  --fp-danger: #dc2626;
+  --fp-card: #ffffff;
+}
+
+html, body {
+  font-family: Vazirmatn, Tahoma, "Segoe UI", sans-serif !important;
+  direction: rtl;
+  text-align: right;
+  background: var(--fp-bg) !important;
+  color: var(--fp-text);
+}
+
+/* هدر */
+#header {
+  background: linear-gradient(135deg, var(--fp-header) 0%, var(--fp-primary-dark) 100%) !important;
+  color: #fff !important;
+  box-shadow: 0 2px 12px rgba(13, 148, 136, 0.35);
+  padding: 12px 20px !important;
+}
+
+#branding h1,
+#branding h1 a:link,
+#branding h1 a:visited {
+  color: #fff !important;
+  font-weight: 700 !important;
+  font-size: 1.35rem !important;
+}
+
+#user-tools {
+  float: left !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  font-weight: 500;
+}
+
+#user-tools a {
+  color: var(--fp-muted) !important;
+  border-bottom-color: transparent !important;
+}
+
+#user-tools a:hover {
+  color: #fff !important;
+}
+
+/* زیر‌هدر برند */
+.fitopia-subtitle {
+  margin: 4px 0 0;
+  padding: 0;
+  color: var(--fp-muted);
+  font-size: 0.8rem;
+  font-weight: 400;
+  opacity: 0.95;
+}
+
+/* ناوبری و ماژول‌ها */
+.module h2,
+.module caption,
+inline-group h2 {
+  background: var(--fp-primary) !important;
+  color: #fff !important;
+  border-radius: 8px 8px 0 0;
+  font-weight: 600;
+}
+
+.module {
+  background: var(--fp-card) !important;
+  border: 1px solid var(--fp-border) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 1px 6px rgba(13, 148, 136, 0.08);
+  margin-bottom: 18px !important;
+  overflow: hidden;
+}
+
+.module caption a,
+.module h2 a {
+  color: #fff !important;
+}
+
+/* لینک‌های Add / Change */
+.module table a.addlink,
+.addlink {
+  color: var(--fp-primary-dark) !important;
+  font-weight: 600;
+}
+
+.changelink {
+  color: var(--fp-primary) !important;
+}
+
+.deletelink {
+  color: var(--fp-danger) !important;
+}
+
+/* دکمه‌ها */
+.button,
+input[type="submit"],
+input[type="button"],
+.submit-row input,
+a.button {
+  background: var(--fp-primary) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  color: #fff !important;
+  font-family: Vazirmatn, Tahoma, sans-serif !important;
+  font-weight: 600 !important;
+  padding: 8px 16px !important;
+  box-shadow: 0 2px 6px rgba(13, 148, 136, 0.25);
+  transition: background 0.15s ease;
+}
+
+.button:hover,
+input[type="submit"]:hover,
+input[type="button"]:hover,
+a.button:hover {
+  background: var(--fp-primary-dark) !important;
+}
+
+.button.default,
+input[type="submit"].default,
+.submit-row input.default {
+  background: var(--fp-header) !important;
+}
+
+deletelink-box .deletelink,
+.button.cancel-link {
+  background: transparent !important;
+  color: var(--fp-danger) !important;
+  box-shadow: none !important;
+}
+
+/* فیلتر و سایدبار */
+#changelist-filter {
+  background: var(--fp-card) !important;
+  border: 1px solid var(--fp-border) !important;
+  border-radius: 10px !important;
+}
+
+#changelist-filter h2 {
+  background: var(--fp-primary) !important;
+  color: #fff !important;
+  border-radius: 10px 10px 0 0;
+}
+
+#changelist-filter h3 {
+  color: var(--fp-primary-dark) !important;
+}
+
+#nav-sidebar {
+  background: #ecfdf5 !important;
+  border-left: 1px solid var(--fp-border) !important;
+  border-right: none !important;
+}
+
+#nav-sidebar .current-model {
+  background: #ccfbf1 !important;
+}
+
+/* جدول لیست */
+#changelist {
+  background: transparent !important;
+}
+
+#changelist table thead th {
+  background: #ccfbf1 !important;
+  color: var(--fp-text) !important;
+  font-weight: 600;
+  border-bottom: 2px solid var(--fp-primary) !important;
+}
+
+#changelist table tbody tr:hover {
+  background: #f0fdfa !important;
+}
+
+/* فرم‌ها */
+.form-row {
+  border-bottom: 1px solid #e2e8f0;
+}
+
+label {
+  font-weight: 600 !important;
+  color: var(--fp-text) !important;
+}
+
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="url"],
+input[type="number"],
+input[type="tel"],
+textarea,
+select,
+.vTextField,
+.vLargeTextField {
+  border: 1px solid #99f6e4 !important;
+  border-radius: 8px !important;
+  padding: 6px 10px !important;
+  font-family: Vazirmatn, Tahoma, sans-serif !important;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--fp-primary) !important;
+  outline: 2px solid rgba(13, 148, 136, 0.2);
+}
+
+/* پیام‌ها */
+.messagelist li.success {
+  background: #ccfbf1 !important;
+  color: var(--fp-primary-dark) !important;
+  border-radius: 8px;
+}
+
+.messagelist li.error {
+  border-radius: 8px;
+}
+
+/* صفحه لاگین */
+.login {
+  background: var(--fp-bg) !important;
+}
+
+.login #header {
+  background: var(--fp-header) !important;
+}
+
+.login #container {
+  border-radius: 12px !important;
+  border: 1px solid var(--fp-border) !important;
+  box-shadow: 0 8px 24px rgba(13, 148, 136, 0.12) !important;
+  overflow: hidden;
+}
+
+.login .form-row label {
+  float: none !important;
+  text-align: right !important;
+}
+
+/* داشبورد اصلی */
+#content h1 {
+  color: var(--fp-header) !important;
+  font-weight: 700;
+}
+
+.fitopia-dashboard-hint {
+  background: linear-gradient(90deg, #ccfbf1, #f0fdfa);
+  border: 1px solid var(--fp-border);
+  border-radius: 12px;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  color: var(--fp-text);
+  line-height: 1.7;
+}
+
+.fitopia-dashboard-hint strong {
+  color: var(--fp-primary-dark);
+}
+
+/* breadcrumb */
+div.breadcrumbs {
+  background: var(--fp-primary-dark) !important;
+  color: #ccfbf1 !important;
+  border-radius: 0 0 8px 8px;
+}
+
+div.breadcrumbs a {
+  color: #fff !important;
+}
+
+/* object tools */
+.object-tools a {
+  background: var(--fp-primary) !important;
+  border-radius: 8px !important;
+  font-family: Vazirmatn, Tahoma, sans-serif !important;
+}
+
+.object-tools a:hover {
+  background: var(--fp-primary-dark) !important;
+}
+
+/* RTL floats */
+.aligned label {
+  float: right !important;
+  padding: 0 0 0 1em !important;
+}
+
+.submit-row {
+  text-align: left !important;
+}
+
+/* selector M2M */
+.selector {
+  direction: ltr;
+}

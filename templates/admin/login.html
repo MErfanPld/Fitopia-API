@@ -1,0 +1,15 @@
+{% extends "admin/login.html" %}
+{% load i18n static %}
+
+{% block extrastyle %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'admin/css/fitopia_admin.css' %}">
+  <style>html { direction: rtl; }</style>
+{% endblock %}
+
+{% block branding %}
+<div id="site-name">
+  <h1>ورود به پنل مدیریت فیتوپیا</h1>
+  <p class="fitopia-subtitle">دسترسی فقط برای مدیران سیستم</p>
+</div>
+{% endblock %}

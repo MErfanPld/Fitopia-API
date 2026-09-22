@@ -1,0 +1,14 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="fitopia-dashboard-hint">
+  <strong>خوش آمدید به پنل مدیریت فیتوپیا</strong><br>
+  از اینجا باشگاه‌ها، مشتریان، مربیان، حضور و غیاب، دوره‌ها، تراکنش‌های مالی،
+  اشتراک‌ها و توکن‌ها را مدیریت کنید.
+  برای API و مستندات فنی به
+  <a href="/api/swagger/" target="_blank" rel="noopener">Swagger</a>
+  مراجعه کنید.
+</div>
+{{ block.super }}
+{% endblock %}
