@@ -15,9 +15,9 @@ class GymCustomerAdmin(admin.ModelAdmin):
 
 @admin.register(GymStaffAccess)
 class GymStaffAccessAdmin(admin.ModelAdmin):
-    list_display = ("user", "gym", "role", "is_active", "created_at") if hasattr(GymStaffAccess, "is_active") else ("user", "gym", "role", "created_at")
-    list_filter = ("role",)
-    search_fields = ("user__username", "user__phone")
+    list_display = ("user", "gym", "role", "is_active", "created_at")
+    list_filter = ("role", "is_active")
+    search_fields = ("user__username", "user__phone_number")
     autocomplete_fields = ("user", "gym")
 
 
@@ -98,5 +98,5 @@ class GymChangeRequestAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
 
 
-# مدل‌های دامنه پنل مربی (شاگرد، پست، برنامه، آمار)
+# مدل‌های دامنه پنل مربی
 from . import admin_coach  # noqa: E402,F401

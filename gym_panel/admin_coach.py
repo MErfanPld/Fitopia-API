@@ -1,4 +1,4 @@
-"""Admin registrations for coach domain models (imported from admin.py)."""
+"""Admin registrations for coach domain models."""
 from django.contrib import admin
 
 from .coach_models import (

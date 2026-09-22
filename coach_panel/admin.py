@@ -96,7 +96,7 @@ class ProgressPhotoAdmin(admin.ModelAdmin):
 class FeedLikeAdmin(admin.ModelAdmin):
     list_display = ("post", "user", "created_at")
     list_filter = ("created_at",)
-    search_fields = ("user__username", "user__phone", "post__caption")
+    search_fields = ("user__username", "user__phone_number", "post__caption")
     autocomplete_fields = ("post", "user")
     readonly_fields = ("created_at",)
 
@@ -105,7 +105,7 @@ class FeedLikeAdmin(admin.ModelAdmin):
 class FeedCommentAdmin(admin.ModelAdmin):
     list_display = ("id", "post", "user", "text_short", "created_at")
     list_filter = ("created_at",)
-    search_fields = ("text", "user__username", "user__phone")
+    search_fields = ("text", "user__username", "user__phone_number")
     autocomplete_fields = ("post", "user")
     readonly_fields = ("created_at",)
 
