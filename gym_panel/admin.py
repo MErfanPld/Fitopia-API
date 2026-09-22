@@ -4,17 +4,21 @@ from django.utils import timezone
 from .models import GymCustomer, GymStaffAccess, GymChangeRequest, GymTicketMessage
 from gym.models import Sport
 
+
 @admin.register(GymCustomer)
 class GymCustomerAdmin(admin.ModelAdmin):
     list_display = ("full_name", "phone", "gym", "sport", "source", "sessions_remaining", "join_date")
     list_filter = ("source", "gym", "sport")
     search_fields = ("full_name", "phone")
+    autocomplete_fields = ("gym", "sport")
 
 
 @admin.register(GymStaffAccess)
 class GymStaffAccessAdmin(admin.ModelAdmin):
-    list_display = ("user", "gym", "role", "created_at")
+    list_display = ("user", "gym", "role", "is_active", "created_at") if hasattr(GymStaffAccess, "is_active") else ("user", "gym", "role", "created_at")
     list_filter = ("role",)
+    search_fields = ("user__username", "user__phone")
+    autocomplete_fields = ("user", "gym")
 
 
 class GymTicketMessageInline(admin.TabularInline):
@@ -64,6 +68,7 @@ class GymChangeRequestAdmin(admin.ModelAdmin):
             self._log(cr, "system", "تیکت تایید و اعمال شد.")
             count += 1
         self.message_user(request, f"{count} تیکت تایید و اعمال شد.")
+
     approve_requests.short_description = "تایید و اعمال درخواست‌های انتخاب‌شده"
 
     def reject_requests(self, request, queryset):
@@ -76,6 +81,7 @@ class GymChangeRequestAdmin(admin.ModelAdmin):
             self._log(cr, "system", f"تیکت رد شد. دلیل: {reason}")
             count += 1
         self.message_user(request, f"{count} تیکت رد شد.")
+
     reject_requests.short_description = "رد درخواست‌های انتخاب‌شده (دلیل از admin_note خوانده می‌شود)"
 
     def save_model(self, request, obj, form, change):
@@ -90,3 +96,7 @@ class GymChangeRequestAdmin(admin.ModelAdmin):
                 reason = obj.admin_note or "بدون ذکر دلیل"
                 self._log(obj, "system", f"تیکت رد شد. دلیل: {reason}")
         super().save_model(request, obj, form, change)
+
+
+# مدل‌های دامنه پنل مربی (شاگرد، پست، برنامه، آمار)
+from . import admin_coach  # noqa: E402,F401
