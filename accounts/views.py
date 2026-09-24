@@ -13,7 +13,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.settings import api_settings as jwt_settings
 
+from drf_spectacular.utils import extend_schema
+
 from .serializers import (
+    LogoutSerializer,
     RegisterSerializer,
     LoginSerializer,
     UserProfileSerializer,
@@ -32,7 +35,7 @@ def get_tokens(user, remember_me=False):
     """
     صدور JWT.
     remember_me=True → access و refresh هر دو ۱۰ روز.
-    در غیر این صورت از تنظیمات SIMPLE_JWT استفاده می‌شود.
+    در غیر این صورت از تنظیمات SIMPLE_JWT.
     """
     refresh = RefreshToken.for_user(user)
     access = refresh.access_token
@@ -46,12 +49,8 @@ def get_tokens(user, remember_me=False):
     else:
         access_lifetime = jwt_settings.ACCESS_TOKEN_LIFETIME
         refresh_lifetime = jwt_settings.REFRESH_TOKEN_LIFETIME
-        access_days = getattr(access_lifetime, "days", None) or int(
-            access_lifetime.total_seconds() // 86400
-        )
-        refresh_days = getattr(refresh_lifetime, "days", None) or int(
-            refresh_lifetime.total_seconds() // 86400
-        )
+        access_days = int(access_lifetime.total_seconds() // 86400) or 1
+        refresh_days = int(refresh_lifetime.total_seconds() // 86400) or 7
 
     return {
         "refresh": str(refresh),
@@ -152,7 +151,7 @@ class UserProfileAPIView(generics.RetrieveUpdateAPIView):
         return self.request.user
 
     def get_serializer_class(self):
-        if self.request.method in ("PUT", "PATCH"):
+        if self.request.method in ["PUT", "PATCH"]:
             return UserProfileUpdateSerializer
         return UserProfileSerializer
 
@@ -160,15 +159,20 @@ class UserProfileAPIView(generics.RetrieveUpdateAPIView):
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @extend_schema(request=ChangePasswordSerializer)
     def post(self, request):
         serializer = ChangePasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
         user = request.user
         if not user.check_password(serializer.validated_data["old_password"]):
             return Response(
-                {"error": "رمز فعلی اشتباه است"},
+                {"detail": "پسورد فعلی اشتباه است"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
         user.set_password(serializer.validated_data["new_password"])
-        user.save()
-        return Response({"message": "رمز با موفقیت تغییر کرد"})
+        user.save(update_fields=["password"])
+        return Response(
+            {"detail": "پسورد با موفقیت تغییر کرد"}, status=status.HTTP_200_OK
+        )
