@@ -1,62 +1,49 @@
+from django.contrib.auth import get_user_model
 from rest_framework import serializers
-from django.contrib.auth.password_validation import validate_password
-from django.core.exceptions import ValidationError as DjangoValidationError
 
-from users.models import User
+User = get_user_model()
 
 
 class RegisterSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8)
+    confirm_password = serializers.CharField(write_only=True)
 
     class Meta:
         model = User
-        fields = [
+        fields = (
             "phone_number",
             "username",
             "full_name",
             "password",
-        ]
+            "confirm_password",
+            "gender",
+            "birth_date",
+        )
 
     def validate(self, attrs):
-        phone = attrs.get("phone_number")
-        username = attrs.get("username")
-        if not phone and not username:
-            raise serializers.ValidationError(
-                "حداقل یکی از شماره موبایل یا نام کاربری الزامی است."
-            )
-        password = attrs.get("password")
-        if password:
-            try:
-                validate_password(password)
-            except DjangoValidationError as e:
-                raise serializers.ValidationError({"password": list(e.messages)})
+        if attrs.get("password") != attrs.get("confirm_password"):
+            raise serializers.ValidationError({"confirm_password": "رمزها یکسان نیستند"})
         return attrs
 
-    def validate_phone_number(self, value):
-        if value and User.objects.filter(phone_number=value).exists():
-            raise serializers.ValidationError("این شماره موبایل قبلاً ثبت شده است.")
-        return value
-
-    def validate_username(self, value):
-        if value and User.objects.filter(username=value).exists():
-            raise serializers.ValidationError("این نام کاربری قبلاً ثبت شده است.")
-        return value
-
     def create(self, validated_data):
-        return User.objects.create_user(
-            phone_number=validated_data.get("phone_number"),
-            username=validated_data.get("username"),
-            full_name=validated_data.get("full_name", ""),
-            password=validated_data["password"],
-        )
+        validated_data.pop("confirm_password", None)
+        password = validated_data.pop("password")
+        user = User(**validated_data)
+        user.set_password(password)
+        user.save()
+        return user
 
 
 class LoginSerializer(serializers.Serializer):
-    """Accept either phone_number or username as the identifier field 'username'."""
-    username = serializers.CharField(
-        help_text="شماره موبایل یا نام کاربری"
-    )
+    """شماره موبایل یا نام کاربری + رمز؛ اختیاری: مرا به خاطر بسپار (۱۰ روز)."""
+
+    username = serializers.CharField(help_text="شماره موبایل یا نام کاربری")
     password = serializers.CharField()
+    remember_me = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="اگر true باشد، نشست تا ۱۰ روز معتبر می‌ماند",
+    )
 
 
 class LogoutSerializer(serializers.Serializer):
@@ -98,15 +85,6 @@ class UserProfileUpdateSerializer(serializers.ModelSerializer):
             "avatar",
         )
 
-    def validate_username(self, value):
-        if value:
-            qs = User.objects.filter(username=value)
-            if self.instance:
-                qs = qs.exclude(pk=self.instance.pk)
-            if qs.exists():
-                raise serializers.ValidationError("این نام کاربری قبلاً ثبت شده است.")
-        return value
-
 
 class ChangePasswordSerializer(serializers.Serializer):
     old_password = serializers.CharField()
@@ -115,11 +93,5 @@ class ChangePasswordSerializer(serializers.Serializer):
 
     def validate(self, attrs):
         if attrs["new_password"] != attrs["confirm_password"]:
-            raise serializers.ValidationError(
-                {"confirm_password": "رمز جدید و تکرار آن یکسان نیستند."}
-            )
-        try:
-            validate_password(attrs["new_password"])
-        except DjangoValidationError as e:
-            raise serializers.ValidationError({"new_password": list(e.messages)})
+            raise serializers.ValidationError({"confirm_password": "رمزها یکسان نیستند"})
         return attrs
