@@ -1,5 +1,6 @@
 from django.urls import path
 from . import management_views as v
+from tokens import staff_views as token_staff
 
 urlpatterns = [
     path("gyms/<int:gym_id>/offerings/", v.OfferingListCreateView.as_view()),
@@ -22,4 +23,21 @@ urlpatterns = [
     path("gyms/<int:gym_id>/finance/refunds/", v.RefundCreateView.as_view()),
     path("gyms/<int:gym_id>/finance/reports/", v.FinanceReportView.as_view()),
     path("gyms/<int:gym_id>/audit-logs/", v.AuditLogListView.as_view()),
+
+    # توکن ورود — باشگاه‌دار
+    path(
+        "gyms/<int:gym_id>/tokens/lookup/",
+        token_staff.GymTokenLookupView.as_view(),
+        name="gym-token-lookup",
+    ),
+    path(
+        "gyms/<int:gym_id>/tokens/admit/",
+        token_staff.GymTokenAdmitView.as_view(),
+        name="gym-token-admit",
+    ),
+    path(
+        "gyms/<int:gym_id>/tokens/today/",
+        token_staff.GymTokenTodayAdmissionsView.as_view(),
+        name="gym-token-today",
+    ),
 ]
