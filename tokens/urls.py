@@ -1,6 +1,5 @@
 from django.urls import path
 from . import views
-from . import staff_views
 
 app_name = "tokens"
 
@@ -10,7 +9,6 @@ urlpatterns = [
     path("my/", views.MyGymTokensView.as_view(), name="my-tokens"),
     path("my/active/", views.MyActiveTokensView.as_view(), name="my-active-tokens"),
 
-    # باشگاه (عمومی مسیر /api/tokens/)
+    # باشگاه — مسیر قدیمی (مصرف مستقیم با gym_id در body)
     path("validate/", views.ValidateGymTokenView.as_view(), name="validate-token"),
-    path("lookup/", staff_views.GymTokenLookupView.as_view(), name="lookup-token-legacy"),
 ]
